@@ -157,8 +157,6 @@ const Dashboard = () => {
           </>
         }
         icon={HiOutlineHome}
-        metricLabel="Colegiados filtrados"
-        metricValue={filtered.totalColegiados}
         subtitle="Visao consolidada dos colegiados, integrantes, reunioes e publicacoes da base institucional."
         title="Dashboard"
       />

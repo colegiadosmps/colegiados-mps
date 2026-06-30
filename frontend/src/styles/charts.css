@@ -63,3 +63,26 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .chart-card__header {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .chart-card__header h3 {
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .chart-card__body {
+    padding: 0.7rem 0.55rem 0.8rem;
+  }
+
+  .chart-area {
+    height: 210px;
+  }
+
+  .chart-area--horizontal {
+    height: auto;
+  }
+}

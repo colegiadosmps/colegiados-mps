@@ -22,9 +22,11 @@ const PageHeader = ({
       </div>
       {filters ? <div className="page-header__filters">{filters}</div> : null}
     </div>
-    <div className="page-header__metric">
-      <MetricCard label={metricLabel} value={metricValue} variant="hero" />
-    </div>
+    {metricLabel ? (
+      <div className="page-header__metric">
+        <MetricCard label={metricLabel} value={metricValue} variant="hero" />
+      </div>
+    ) : null}
   </section>
 );
 

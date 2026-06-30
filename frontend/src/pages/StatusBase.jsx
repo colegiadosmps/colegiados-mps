@@ -109,6 +109,17 @@ const StatusBase = () => {
     }
   };
 
+  const handleLogout = () => {
+    setToken("");
+    setCredentials(initialCredentials);
+    setHistorico(null);
+    setDetalheAtual(null);
+    setDriveStatus(null);
+    setSyncing(false);
+    setSubmitting(false);
+    setMessage("Sessao administrativa finalizada.");
+  };
+
   const ultima = historico?.[0];
 
   return (
@@ -209,6 +220,9 @@ const StatusBase = () => {
                 type="button"
               >
                 {syncing ? "Sincronizando..." : "Sincronizar agora"}
+              </button>
+              <button className="text-button" onClick={handleLogout} type="button">
+                Finalizar sessao
               </button>
             </div>
 
