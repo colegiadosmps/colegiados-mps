@@ -7,11 +7,35 @@ dotenv.config();
 
 const defaultDatabasePath = "./src/database/colegiados.sqlite";
 const configuredPath = process.env.DATABASE_PATH || defaultDatabasePath;
-const databasePath = path.isAbsolute(configuredPath)
-  ? configuredPath
-  : path.resolve(process.cwd(), configuredPath);
+const resolvedDefaultDatabasePath = path.resolve(process.cwd(), defaultDatabasePath);
 
-fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+const resolveDatabasePath = () => {
+  const candidatePath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.resolve(process.cwd(), configuredPath);
+
+  try {
+    fs.mkdirSync(path.dirname(candidatePath), { recursive: true });
+    return candidatePath;
+  } catch (error) {
+    if (candidatePath === resolvedDefaultDatabasePath) {
+      throw error;
+    }
+
+    console.warn(
+      [
+        `DATABASE_PATH="${configuredPath}" nao esta gravavel.`,
+        `Usando fallback local em "${resolvedDefaultDatabasePath}".`,
+        "No Render, monte um Persistent Disk em /data para persistencia real.",
+      ].join(" "),
+    );
+
+    fs.mkdirSync(path.dirname(resolvedDefaultDatabasePath), { recursive: true });
+    return resolvedDefaultDatabasePath;
+  }
+};
+
+const databasePath = resolveDatabasePath();
 
 const sqlite = sqlite3.verbose();
 const db = new sqlite.Database(databasePath);
