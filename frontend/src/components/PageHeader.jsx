@@ -10,15 +10,17 @@ const PageHeader = ({
 }) => (
   <section className="page-header">
     <div className="page-header__top">
-      <div className="page-header__title-block">
-        <div className="page-header__glyph">
-          <Icon />
+      <div className="page-header__intro">
+        <div className="page-header__title-block">
+          <div className="page-header__glyph">
+            <Icon />
+          </div>
+          <div className="page-header__heading">
+            <p className="eyebrow eyebrow--light page-header__eyebrow">Painel de consulta</p>
+            <h2>{title}</h2>
+          </div>
         </div>
-        <div>
-          <p className="eyebrow eyebrow--light">Painel de consulta</p>
-          <h2>{title}</h2>
-          {subtitle ? <p className="page-header__subtitle">{subtitle}</p> : null}
-        </div>
+        {subtitle ? <p className="page-header__subtitle">{subtitle}</p> : null}
       </div>
       {filters ? <div className="page-header__filters">{filters}</div> : null}
     </div>
