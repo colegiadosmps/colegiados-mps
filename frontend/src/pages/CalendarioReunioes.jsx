@@ -9,16 +9,27 @@ import PageHeader from "../components/PageHeader";
 import TabelaReunioes from "../components/TabelaReunioes";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
+import { formatMonthYear } from "../services/formatters";
 
 const aggregateByMonth = (rows) => {
   const counts = new Map();
   rows.forEach((row) => {
-    const label = row.data_reuniao ? row.data_reuniao.slice(0, 7) : "Sem data";
+    const label = row.data_reuniao ? formatMonthYear(row.data_reuniao) : "Sem data";
     counts.set(label, (counts.get(label) || 0) + 1);
   });
   return Array.from(counts.entries())
     .map(([label, value]) => ({ label, value }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+    .sort((left, right) => {
+      if (left.label === "Sem data") {
+        return 1;
+      }
+      if (right.label === "Sem data") {
+        return -1;
+      }
+      const [leftMonth, leftYear] = left.label.split("/");
+      const [rightMonth, rightYear] = right.label.split("/");
+      return `${leftYear}${leftMonth}`.localeCompare(`${rightYear}${rightMonth}`);
+    });
 };
 
 const CalendarioReunioes = () => {

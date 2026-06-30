@@ -1,10 +1,14 @@
-const PowerBiTable = ({ columns, emptyMessage, rows }) => {
+import { formatValueByKey } from "../services/formatters";
+
+const PowerBiTable = ({ columns, emptyMessage, maxVisibleRows = 4, rows }) => {
   if (!rows.length) {
     return <div className="empty-state">{emptyMessage}</div>;
   }
 
+  const isScrollable = rows.length > maxVisibleRows;
+
   return (
-    <div className="powerbi-table-shell">
+    <div className={`powerbi-table-shell ${isScrollable ? "powerbi-table-shell--scrollable" : ""}`}>
       <table className="powerbi-table">
         <thead>
           <tr>
@@ -24,7 +28,7 @@ const PowerBiTable = ({ columns, emptyMessage, rows }) => {
             <tr key={row.id || `${rowIndex}-${columns[0].key}`}>
               {columns.map((column) => (
                 <td key={column.key} className={column.className || ""}>
-                  {column.render ? column.render(row) : row[column.key] || "-"}
+                  {column.render ? column.render(row) : formatValueByKey(column.key, row[column.key])}
                 </td>
               ))}
             </tr>

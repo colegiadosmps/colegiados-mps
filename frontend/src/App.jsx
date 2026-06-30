@@ -1,5 +1,4 @@
 import { useState } from "react";
-import AdminSyncModal from "./components/AdminSyncModal";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -14,7 +13,6 @@ import Publicacoes from "./pages/Publicacoes";
 import StatusBase from "./pages/StatusBase";
 
 const App = () => {
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -22,10 +20,7 @@ const App = () => {
       <div className="app-shell">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
         <div className="app-main">
-          <Header
-            onOpenAdmin={() => setAdminModalOpen(true)}
-            onToggleMenu={() => setMenuOpen((current) => !current)}
-          />
+          <Header onToggleMenu={() => setMenuOpen((current) => !current)} />
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -40,7 +35,6 @@ const App = () => {
             </Routes>
           </main>
         </div>
-        {adminModalOpen ? <AdminSyncModal onClose={() => setAdminModalOpen(false)} /> : null}
       </div>
     </BrowserRouter>
   );

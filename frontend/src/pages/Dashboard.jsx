@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
-  HiOutlineBriefcase,
-  HiOutlineCalendarDays,
-  HiOutlineChartBarSquare,
-  HiOutlineClipboardDocumentList,
-  HiOutlineDocumentText,
   HiOutlineHome,
-  HiOutlineUsers,
 } from "react-icons/hi2";
 import CardColegiado from "../components/CardColegiado";
 import CardResumo from "../components/CardResumo";
@@ -22,15 +16,6 @@ import {
   buildOptions,
   normalizeFilterValue,
 } from "../services/filterUtils";
-
-const quickLinks = [
-  { to: "/colegiados/internos", label: "Colegiados Internos", icon: HiOutlineClipboardDocumentList },
-  { to: "/colegiados/externos", label: "Colegiados Externos", icon: HiOutlineBriefcase },
-  { to: "/integrantes", label: "Integrantes", icon: HiOutlineUsers },
-  { to: "/calendario-reunioes", label: "Calendario de Reunioes", icon: HiOutlineCalendarDays },
-  { to: "/historico-reunioes", label: "Historico de Reunioes", icon: HiOutlineDocumentText },
-  { to: "/publicacoes", label: "Publicacoes", icon: HiOutlineChartBarSquare },
-];
 
 const aggregateBy = (rows, key, valueFilter) => {
   const counts = new Map();
@@ -52,7 +37,6 @@ const aggregateBy = (rows, key, valueFilter) => {
 const Dashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [resumo, setResumo] = useState(null);
-  const [graficos, setGraficos] = useState(null);
   const [membros, setMembros] = useState([]);
   const [reunioes, setReunioes] = useState([]);
   const [error, setError] = useState("");
@@ -65,13 +49,11 @@ const Dashboard = () => {
   useEffect(() => {
     Promise.all([
       api.get("/api/dashboard"),
-      api.get("/api/dashboard/graficos"),
       api.get("/api/membros"),
       api.get("/api/reunioes"),
     ])
-      .then(([resumoResult, graficosResult, membrosResult, reunioesResult]) => {
+      .then(([resumoResult, membrosResult, reunioesResult]) => {
         setResumo(resumoResult);
-        setGraficos(graficosResult);
         setMembros(membrosResult);
         setReunioes(reunioesResult);
       })
@@ -136,7 +118,7 @@ const Dashboard = () => {
     return <div className="empty-state">{error}</div>;
   }
 
-  if (!resumo || !graficos || !filtered) {
+  if (!resumo || !filtered) {
     return <Loading label="Montando o painel institucional..." />;
   }
 
@@ -177,21 +159,9 @@ const Dashboard = () => {
         icon={HiOutlineHome}
         metricLabel="Colegiados filtrados"
         metricValue={filtered.totalColegiados}
-        subtitle="Consulte colegiados, integrantes, reunioes e publicacoes com base sincronizada do Google Drive."
+        subtitle="Visao consolidada dos colegiados, integrantes, reunioes e publicacoes da base institucional."
         title="Dashboard"
       />
-
-      <section className="dashboard-hero">
-        <div className="dashboard-hero__panel">
-          <p className="eyebrow eyebrow--light">Painel institucional</p>
-          <h2>Consulte colegiados, integrantes, reunioes e publicacoes com boa leitura.</h2>
-        </div>
-        <div className="hero-sync-card">
-          <p className="eyebrow">Ultima sincronizacao</p>
-          <strong>{resumo.ultima_sincronizacao?.data_sincronizacao || "Ainda nao realizada"}</strong>
-          <span className="muted">{resumo.ultima_sincronizacao?.status || "Sem historico registrado"}</span>
-        </div>
-      </section>
 
       <section className="metric-grid">
         <CardResumo titulo="Total de Colegiados" valor={filtered.totalColegiados} />
@@ -201,19 +171,6 @@ const Dashboard = () => {
         <CardResumo titulo="Ativos" valor={filtered.totalAtivos} />
         <CardResumo titulo="Reunioes" valor={filtered.totalReunioes} />
         <CardResumo titulo="Publicacoes" valor={filtered.totalPublicacoes} />
-        <CardResumo
-          titulo="Ultima Sincronizacao"
-          valor={resumo.ultima_sincronizacao?.data_sincronizacao?.slice(0, 10) || "-"}
-        />
-      </section>
-
-      <section className="quick-links">
-        {quickLinks.map((item) => (
-          <Link key={item.to} className="quick-link-card" to={item.to}>
-            <item.icon />
-            <span>{item.label}</span>
-          </Link>
-        ))}
       </section>
 
       <section className="charts-grid">

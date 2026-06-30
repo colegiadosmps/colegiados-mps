@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { formatDateTime } from "../services/formatters";
 
 const CardColegiado = ({ colegiado }) => (
   <article className="entity-card">
@@ -10,7 +11,11 @@ const CardColegiado = ({ colegiado }) => (
     </div>
 
     <h3>{colegiado.nome}</h3>
-    <p className="muted">{colegiado.ultima_atualizacao || "Sem base sincronizada"}</p>
+    <p className="muted">
+      {colegiado.ultima_atualizacao
+        ? `Atualizado em ${formatDateTime(colegiado.ultima_atualizacao)}`
+        : "Sem base sincronizada"}
+    </p>
 
     <div className="entity-card__stats">
       <div>
