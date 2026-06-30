@@ -418,7 +418,7 @@
 
   .page-header__title-block {
     display: grid;
-    grid-template-columns: 52px 88px minmax(0, 1fr);
+    grid-template-columns: 52px 1fr;
     align-items: center;
     gap: 0.65rem;
   }
@@ -453,13 +453,14 @@
   }
 
   .page-header__title {
-    font-size: 1.15rem;
+    font-size: 1.65rem;
     line-height: 1.05;
     min-width: 0;
     word-break: normal;
     overflow-wrap: normal;
     white-space: nowrap;
     text-align: left;
+    margin-top: 0.1rem;
   }
 
   .page-header__subtitle {
@@ -547,7 +548,7 @@
   }
 
   .page-header__title-block {
-    grid-template-columns: 44px 78px minmax(0, 1fr);
+    grid-template-columns: 44px 1fr;
     gap: 0.5rem;
   }
 
@@ -558,7 +559,7 @@
   }
 
   .page-header__title {
-    font-size: 1rem;
+    font-size: 1.35rem;
   }
 
   .page-content {
