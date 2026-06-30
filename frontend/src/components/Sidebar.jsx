@@ -2,11 +2,12 @@ import { NavLink } from "react-router-dom";
 
 const items = [
   { to: "/", label: "Dashboard" },
-  { to: "/colegiados", label: "Colegiados" },
-  { to: "/membros", label: "Membros" },
-  { to: "/reunioes", label: "Reunioes" },
+  { to: "/colegiados/internos", label: "Colegiados Internos" },
+  { to: "/colegiados/externos", label: "Colegiados Externos" },
+  { to: "/integrantes", label: "Integrantes" },
+  { to: "/calendario-reunioes", label: "Calendario de Reunioes" },
+  { to: "/historico-reunioes", label: "Historico de Reunioes" },
   { to: "/publicacoes", label: "Publicacoes" },
-  { to: "/importacoes", label: "Importacoes" },
 ];
 
 const Sidebar = ({ open, onClose }) => (

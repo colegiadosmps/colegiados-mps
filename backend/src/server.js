@@ -3,13 +3,15 @@ import path from "node:path";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { exec, getDatabasePath } from "./database/db.js";
+import { all, exec, getDatabasePath, run } from "./database/db.js";
 import colegiadosRoutes from "./routes/colegiadosRoutes.js";
 import membrosRoutes from "./routes/membrosRoutes.js";
 import reunioesRoutes from "./routes/reunioesRoutes.js";
 import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import importacoesRoutes from "./routes/importacoesRoutes.js";
-import { obterDashboard } from "./controllers/colegiadosController.js";
+import authRoutes from "./routes/authRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import sincronizacoesRoutes from "./routes/sincronizacoesRoutes.js";
 
 dotenv.config();
 
@@ -42,16 +44,34 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
-app.get("/api/dashboard", obterDashboard);
+const ensureColumn = async (tableName, columnName, definition) => {
+  const columns = await all(`PRAGMA table_info(${tableName})`);
+
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  await run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+};
+
+const ensureSchemaCompatibility = async () => {
+  await ensureColumn("colegiados", "competencia", "TEXT");
+  await ensureColumn("pastas_publicacoes", "drive_folder_id", "TEXT");
+};
+
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/colegiados", colegiadosRoutes);
 app.use("/api/membros", membrosRoutes);
 app.use("/api/reunioes", reunioesRoutes);
 app.use("/api/publicacoes", publicacoesRoutes);
 app.use("/api/importacoes", importacoesRoutes);
+app.use("/api/sincronizacoes", sincronizacoesRoutes);
 
 const initializeDatabase = async () => {
   const schema = fs.readFileSync(schemaPath, "utf8");
   await exec(schema);
+  await ensureSchemaCompatibility();
 };
 
 initializeDatabase()

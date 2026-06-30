@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS colegiados (
   nome TEXT NOT NULL,
   tipo TEXT,
   descricao TEXT,
+  competencia TEXT,
   ativo TEXT DEFAULT 'Sim',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS pastas_publicacoes (
   sigla_colegiado TEXT NOT NULL,
   nome_pasta TEXT NOT NULL,
   link_pasta TEXT NOT NULL,
+  drive_folder_id TEXT,
   data_base TEXT,
   ativo TEXT DEFAULT 'Sim',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -74,4 +76,33 @@ CREATE TABLE IF NOT EXISTS importacoes (
   status TEXT NOT NULL,
   observacao TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sincronizacoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  data_sincronizacao TEXT NOT NULL,
+  total_pastas_encontradas INTEGER DEFAULT 0,
+  total_arquivos_encontrados INTEGER DEFAULT 0,
+  total_arquivos_processados INTEGER DEFAULT 0,
+  total_registros_membros INTEGER DEFAULT 0,
+  total_registros_reunioes INTEGER DEFAULT 0,
+  total_pastas_publicacoes INTEGER DEFAULT 0,
+  status TEXT NOT NULL,
+  observacao TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sincronizacao_arquivos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sincronizacao_id INTEGER NOT NULL,
+  arquivo TEXT NOT NULL,
+  drive_file_id TEXT,
+  tipo TEXT NOT NULL,
+  sigla_colegiado TEXT NOT NULL,
+  data_base TEXT,
+  quantidade_registros INTEGER DEFAULT 0,
+  status TEXT NOT NULL,
+  observacao TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sincronizacao_id) REFERENCES sincronizacoes(id)
 );

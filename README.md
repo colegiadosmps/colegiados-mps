@@ -1,11 +1,11 @@
 # Colegiados - MPS
 
-Sistema web para consulta e administracao de colegiados do Ministerio da Previdencia Social, preparado desde o inicio para operar localmente e em producao com frontend em Netlify, backend em Render e banco SQLite em disco persistente.
+Sistema web de consulta de colegiados do Ministerio da Previdencia Social, preparado desde o inicio para operar localmente e em producao com frontend em Netlify, backend em Render, sincronizacao com Google Drive e banco SQLite em disco persistente.
 
 ## Tecnologias
 
 - Frontend: React, Vite, JavaScript e CSS puro
-- Backend: Node.js, Express, JavaScript, SQLite e importacao CSV
+- Backend: Node.js, Express, JavaScript, SQLite, Google Drive API e sincronizacao CSV
 - Banco de dados: SQLite com caminho configuravel via variavel de ambiente
 
 ## Estrutura do projeto
@@ -60,8 +60,9 @@ PORT=3333
 DATABASE_PATH=./src/database/colegiados.sqlite
 FRONTEND_URL=http://localhost:5173
 GOOGLE_DRIVE_ROOT_FOLDER_ID=
-GOOGLE_SERVICE_ACCOUNT_EMAIL=
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
+GOOGLE_DRIVE_FOLDER_ID=
+GOOGLE_CLIENT_EMAIL=
+GOOGLE_PRIVATE_KEY=
 GOOGLE_DRIVE_PUBLICATIONS_SUFFIX=_Publicacoes
 ```
 
@@ -71,9 +72,9 @@ Em producao no Render:
 PORT=3333
 DATABASE_PATH=/data/colegiados.sqlite
 FRONTEND_URL=https://colegiados-mps.netlify.app
-GOOGLE_DRIVE_ROOT_FOLDER_ID=id-da-pasta-raiz
-GOOGLE_SERVICE_ACCOUNT_EMAIL=seu-service-account@projeto.iam.gserviceaccount.com
-GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_DRIVE_FOLDER_ID=id-da-pasta-raiz
+GOOGLE_CLIENT_EMAIL=seu-service-account@projeto.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 GOOGLE_DRIVE_PUBLICATIONS_SUFFIX=_Publicacoes
 ```
 
@@ -102,7 +103,9 @@ O backend passa a expor:
 
 ```txt
 GET  /api/importacoes/google-drive/status
-POST /api/importacoes/google-drive/sync
+GET  /api/sincronizacoes
+GET  /api/sincronizacoes/:id
+POST /api/sincronizacoes/executar
 ```
 
 Na sincronizacao, o sistema:
@@ -133,7 +136,7 @@ npm run dev
 
 O frontend inicia via Vite e consome a URL configurada em `VITE_API_URL`.
 
-## Padrao de importacao CSV
+## Padrao de sincronizacao CSV
 
 Os arquivos devem seguir o formato:
 
@@ -155,31 +158,29 @@ Regras implementadas:
 - Arquivos de reunioes vazios com cabecalho sao aceitos.
 - Ao importar um novo arquivo de membros ou reunioes para o mesmo colegiado, os dados anteriores desse tipo sao substituidos.
 - Toda importacao e registrada na tabela `importacoes`.
+- Toda sincronizacao tambem e registrada nas tabelas `sincronizacoes` e `sincronizacao_arquivos`.
 
 ## Rotas principais da API
 
 ```txt
 GET    /api/health
 GET    /api/dashboard
+GET    /api/dashboard/graficos
 
 GET    /api/colegiados
+GET    /api/colegiados?tipo=Interno
+GET    /api/colegiados?tipo=Externo
 GET    /api/colegiados/:sigla
-POST   /api/colegiados
-PUT    /api/colegiados/:id
-DELETE /api/colegiados/:id
 
 GET    /api/membros
 GET    /api/reunioes
 
 GET    /api/publicacoes
-POST   /api/publicacoes
-PUT    /api/publicacoes/:id
-DELETE /api/publicacoes/:id
 
-GET    /api/importacoes
-POST   /api/importacoes/upload
 GET    /api/importacoes/google-drive/status
-POST   /api/importacoes/google-drive/sync
+GET    /api/sincronizacoes
+GET    /api/sincronizacoes/:id
+POST   /api/sincronizacoes/executar
 ```
 
 ## Publicar backend no Render

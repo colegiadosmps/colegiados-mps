@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Filtros from "../components/Filtros";
+import GraficoBarras from "../components/GraficoBarras";
+import GraficoPizza from "../components/GraficoPizza";
 import Loading from "../components/Loading";
 import TabelaMembros from "../components/TabelaMembros";
 import { api } from "../services/api";
 
-const Membros = () => {
+const Integrantes = () => {
   const [searchParams] = useSearchParams();
   const [membros, setMembros] = useState([]);
   const [colegiados, setColegiados] = useState([]);
+  const [graficos, setGraficos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: "",
@@ -19,10 +22,15 @@ const Membros = () => {
   });
 
   useEffect(() => {
-    Promise.all([api.get("/api/membros"), api.get("/api/colegiados")])
-      .then(([membrosResult, colegiadosResult]) => {
+    Promise.all([
+      api.get("/api/membros"),
+      api.get("/api/colegiados"),
+      api.get("/api/dashboard/graficos"),
+    ])
+      .then(([membrosResult, colegiadosResult, graficosResult]) => {
         setMembros(membrosResult);
         setColegiados(colegiadosResult);
+        setGraficos(graficosResult);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -41,13 +49,13 @@ const Membros = () => {
     );
   });
 
-  if (loading) {
-    return <Loading label="Carregando membros..." />;
+  if (loading || !graficos) {
+    return <Loading label="Carregando integrantes..." />;
   }
 
   return (
     <div className="page-content">
-      <Filtros title="Consulta de membros">
+      <Filtros title="Consulta de integrantes">
         <label>
           Buscar por nome
           <input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
@@ -57,9 +65,7 @@ const Membros = () => {
           <select value={filters.colegiado} onChange={(event) => setFilters({ ...filters, colegiado: event.target.value })}>
             <option value="">Todos</option>
             {colegiados.map((colegiado) => (
-              <option key={colegiado.id} value={colegiado.sigla}>
-                {colegiado.sigla}
-              </option>
+              <option key={colegiado.id} value={colegiado.sigla}>{colegiado.sigla}</option>
             ))}
           </select>
         </label>
@@ -81,9 +87,16 @@ const Membros = () => {
         </label>
       </Filtros>
 
+      <section className="charts-grid">
+        <GraficoBarras data={graficos.membros_por_colegiado} title="Integrantes por colegiado" />
+        <GraficoPizza data={graficos.membros_ativos_inativos} title="Ativos x inativos" />
+        <GraficoBarras data={graficos.membros_por_tipo_vinculo} title="Integrantes por tipo de vinculo" color="#5c8fc7" />
+        <GraficoBarras data={graficos.membros_por_papel} title="Integrantes por papel" color="#2f7d4f" />
+      </section>
+
       <section className="content-card">
         <div className="section-heading">
-          <h2>Base de membros</h2>
+          <h2>Base de integrantes</h2>
           <p>{filteredMembros.length} registro(s) encontrados.</p>
         </div>
         <TabelaMembros membros={filteredMembros} />
@@ -92,4 +105,4 @@ const Membros = () => {
   );
 };
 
-export default Membros;
+export default Integrantes;

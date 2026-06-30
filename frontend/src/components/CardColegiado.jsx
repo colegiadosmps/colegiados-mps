@@ -21,8 +21,8 @@ const CardColegiado = ({ colegiado }) => (
     </div>
 
     <div className="entity-card__actions">
-      <Link to={`/membros?colegiado=${colegiado.sigla}`}>Ver membros</Link>
-      <Link to={`/reunioes?colegiado=${colegiado.sigla}`}>Ver reunioes</Link>
+      <Link to={`/colegiados/${colegiado.sigla}`}>Ver detalhes</Link>
+      <Link to={`/integrantes?colegiado=${colegiado.sigla}`}>Ver integrantes</Link>
       <Link to={`/publicacoes?colegiado=${colegiado.sigla}`}>
         Abrir publicacoes
       </Link>

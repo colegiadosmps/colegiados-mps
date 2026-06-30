@@ -85,7 +85,9 @@ label {
 }
 
 .text-button,
-.entity-card__actions a {
+.entity-card__actions a,
+.text-link,
+.quick-link-card {
   background: #eef4fb;
   color: var(--bg-dark);
   padding: 0.7rem 1rem;
@@ -94,8 +96,15 @@ label {
 .primary-button:hover,
 .secondary-button:hover,
 .text-button:hover,
-.entity-card__actions a:hover {
+.entity-card__actions a:hover,
+.text-link:hover,
+.quick-link-card:hover {
   transform: translateY(-1px);
+}
+
+.text-link {
+  display: inline-flex;
+  border-radius: 999px;
 }
 
 .danger-text {

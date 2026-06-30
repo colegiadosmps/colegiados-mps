@@ -24,19 +24,22 @@ const request = async (path, options = {}) => {
 
 export const api = {
   get: (path) => request(path),
-  post: (path, body) =>
+  post: (path, body, options = {}) =>
     request(path, {
       method: "POST",
       body: JSON.stringify(body),
+      ...options,
     }),
-  put: (path, body) =>
+  put: (path, body, options = {}) =>
     request(path, {
       method: "PUT",
       body: JSON.stringify(body),
+      ...options,
     }),
-  delete: (path) =>
+  delete: (path, options = {}) =>
     request(path, {
       method: "DELETE",
+      ...options,
     }),
   upload: async (path, file) => {
     const formData = new FormData();

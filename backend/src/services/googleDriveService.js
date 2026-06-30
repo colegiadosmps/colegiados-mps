@@ -9,9 +9,17 @@ const DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
 const DEFAULT_PUBLICATIONS_SUFFIX = "_Publicacoes";
 
 const getConfig = () => ({
-  rootFolderId: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || "",
-  serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "",
-  privateKey: (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(
+  rootFolderId:
+    process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ||
+    process.env.GOOGLE_DRIVE_FOLDER_ID ||
+    "",
+  serviceAccountEmail:
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL || "",
+  privateKey: (
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    ""
+  ).replace(
     /\\n/g,
     "\n",
   ),
@@ -152,6 +160,7 @@ const upsertPublicationFolder = async ({
   siglaColegiado,
   nomePasta,
   linkPasta,
+  driveFolderId,
   dataBase,
 }) => {
   const existing = await get(
@@ -164,9 +173,9 @@ const upsertPublicationFolder = async ({
   if (existing) {
     await run(
       `UPDATE pastas_publicacoes
-       SET link_pasta = ?, data_base = ?, ativo = 'Sim', updated_at = datetime('now')
+       SET link_pasta = ?, drive_folder_id = ?, data_base = ?, ativo = 'Sim', updated_at = datetime('now')
        WHERE id = ?`,
-      [linkPasta, dataBase || null, existing.id],
+      [linkPasta, driveFolderId || null, dataBase || null, existing.id],
     );
     return "updated";
   }
@@ -176,11 +185,12 @@ const upsertPublicationFolder = async ({
       sigla_colegiado,
       nome_pasta,
       link_pasta,
+      drive_folder_id,
       data_base,
       ativo,
       updated_at
-    ) VALUES (?, ?, ?, ?, 'Sim', datetime('now'))`,
-    [siglaColegiado, nomePasta, linkPasta, dataBase || null],
+    ) VALUES (?, ?, ?, ?, ?, 'Sim', datetime('now'))`,
+    [siglaColegiado, nomePasta, linkPasta, driveFolderId || null, dataBase || null],
   );
 
   return "created";
@@ -209,6 +219,7 @@ export const syncGoogleDrive = async () => {
 
   const summary = {
     folders_scanned: colegiadoFolders.length,
+    files_found: 0,
     imported_files: [],
     publication_folders: [],
     skipped_files: [],
@@ -227,6 +238,7 @@ export const syncGoogleDrive = async () => {
       const csvFiles = folderItems
         .filter((item) => item.mimeType !== "application/vnd.google-apps.folder")
         .filter((item) => item.name.toLowerCase().endsWith(".csv"));
+      summary.files_found += csvFiles.length;
 
       const publicationFolders = folderItems.filter(
         (item) =>
@@ -265,10 +277,14 @@ export const syncGoogleDrive = async () => {
         try {
           const content = await drive.downloadFile(csvFile.id);
           const result = await importCsvContent(content, csvFile.name);
-          summary.imported_files.push(result);
+          summary.imported_files.push({
+            ...result,
+            drive_file_id: csvFile.id,
+          });
         } catch (error) {
           summary.errors.push({
             file: csvFile.name,
+            drive_file_id: csvFile.id,
             message: error.message,
           });
         }
@@ -279,12 +295,14 @@ export const syncGoogleDrive = async () => {
           siglaColegiado,
           nomePasta: publicationFolder.name,
           linkPasta: publicationFolder.webViewLink || "",
+          driveFolderId: publicationFolder.id,
           dataBase: null,
         });
 
         summary.publication_folders.push({
           sigla_colegiado: siglaColegiado,
           nome_pasta: publicationFolder.name,
+          drive_folder_id: publicationFolder.id,
           action,
         });
       }
