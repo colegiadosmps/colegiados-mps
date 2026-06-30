@@ -3,7 +3,9 @@ import fs from "node:fs";
 import { Router } from "express";
 import multer from "multer";
 import {
+  obterStatusGoogleDrive,
   listarImportacoes,
+  sincronizarGoogleDrive,
   uploadImportacao,
 } from "../controllers/importacoesController.js";
 
@@ -23,6 +25,8 @@ const upload = multer({ storage });
 const router = Router();
 
 router.get("/", listarImportacoes);
+router.get("/google-drive/status", obterStatusGoogleDrive);
+router.post("/google-drive/sync", sincronizarGoogleDrive);
 router.post("/upload", upload.single("arquivo"), uploadImportacao);
 
 export default router;

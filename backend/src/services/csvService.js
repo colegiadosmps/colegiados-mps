@@ -9,8 +9,7 @@ const detectDelimiter = (content) => {
   return semicolonCount >= commaCount ? ";" : ",";
 };
 
-export const readCsvFile = (filePath) => {
-  const content = fs.readFileSync(filePath, "utf8");
+export const parseCsvContent = (content) => {
   const delimiter = detectDelimiter(content);
 
   const records = parse(content, {
@@ -25,4 +24,9 @@ export const readCsvFile = (filePath) => {
     delimiter,
     records,
   };
+};
+
+export const readCsvFile = (filePath) => {
+  const content = fs.readFileSync(filePath, "utf8");
+  return parseCsvContent(content);
 };

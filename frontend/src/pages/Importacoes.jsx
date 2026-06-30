@@ -6,14 +6,21 @@ const Importacoes = () => {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [driveStatus, setDriveStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [syncingDrive, setSyncingDrive] = useState(false);
   const [message, setMessage] = useState("");
 
   const loadHistory = () =>
-    api
-      .get("/api/importacoes")
-      .then(setHistory)
+    Promise.all([
+      api.get("/api/importacoes"),
+      api.get("/api/importacoes/google-drive/status"),
+    ])
+      .then(([historyResult, driveStatusResult]) => {
+        setHistory(historyResult);
+        setDriveStatus(driveStatusResult);
+      })
       .finally(() => setLoading(false));
 
   useEffect(() => {
@@ -45,6 +52,23 @@ const Importacoes = () => {
     }
   };
 
+  const handleDriveSync = async () => {
+    setSyncingDrive(true);
+    setMessage("");
+
+    try {
+      const syncResult = await api.post("/api/importacoes/google-drive/sync", {});
+      setResult(syncResult);
+      setLoading(true);
+      await loadHistory();
+      setMessage("Sincronizacao com Google Drive concluida.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setSyncingDrive(false);
+    }
+  };
+
   if (loading) {
     return <Loading label="Carregando historico de importacoes..." />;
   }
@@ -57,10 +81,25 @@ const Importacoes = () => {
           <p>Envie arquivos no padrao SIGLA_TIPO_DD_MM_AAAA.csv para atualizar a base.</p>
         </div>
 
+        <div className="inline-message">
+          Google Drive:{" "}
+          {driveStatus?.configured
+            ? `configurado para ${driveStatus.service_account_email}.`
+            : "nao configurado. Preencha as variaveis do backend para habilitar a sincronizacao."}
+        </div>
+
         <form className="upload-form" onSubmit={handleSubmit}>
           <input accept=".csv" onChange={(event) => setFile(event.target.files?.[0] || null)} type="file" />
           <button className="primary-button" disabled={submitting} type="submit">
             {submitting ? "Enviando..." : "Enviar arquivo"}
+          </button>
+          <button
+            className="secondary-button"
+            disabled={syncingDrive || !driveStatus?.configured}
+            onClick={handleDriveSync}
+            type="button"
+          >
+            {syncingDrive ? "Sincronizando..." : "Sincronizar Google Drive"}
           </button>
         </form>
 
@@ -75,6 +114,13 @@ const Importacoes = () => {
             <p>Data base: {result.data_base}</p>
             <p>Quantidade de registros: {result.quantidade_registros}</p>
             <p>Status: {result.status}</p>
+            {"imported_files" in result ? (
+              <>
+                <p>Arquivos importados: {result.imported_files.length}</p>
+                <p>Pastas de publicacoes sincronizadas: {result.publication_folders.length}</p>
+                <p>Erros: {result.errors.length}</p>
+              </>
+            ) : null}
           </div>
         ) : null}
       </section>

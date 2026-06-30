@@ -59,6 +59,10 @@ Crie `backend/.env` com base em `backend/.env.example`:
 PORT=3333
 DATABASE_PATH=./src/database/colegiados.sqlite
 FRONTEND_URL=http://localhost:5173
+GOOGLE_DRIVE_ROOT_FOLDER_ID=
+GOOGLE_SERVICE_ACCOUNT_EMAIL=
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
+GOOGLE_DRIVE_PUBLICATIONS_SUFFIX=_Publicacoes
 ```
 
 Em producao no Render:
@@ -67,9 +71,45 @@ Em producao no Render:
 PORT=3333
 DATABASE_PATH=/data/colegiados.sqlite
 FRONTEND_URL=https://colegiados-mps.netlify.app
+GOOGLE_DRIVE_ROOT_FOLDER_ID=id-da-pasta-raiz
+GOOGLE_SERVICE_ACCOUNT_EMAIL=seu-service-account@projeto.iam.gserviceaccount.com
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_DRIVE_PUBLICATIONS_SUFFIX=_Publicacoes
 ```
 
 Se `DATABASE_PATH` nao for definido, o backend usa `./src/database/colegiados.sqlite`.
+
+### Integracao com Google Drive
+
+Para sincronizar automaticamente os CSVs e as pastas de publicacoes:
+
+1. Crie uma `Service Account` no Google Cloud com acesso a `Google Drive API`.
+2. Compartilhe a pasta raiz do Drive com o email da service account.
+3. Defina `GOOGLE_DRIVE_ROOT_FOLDER_ID` com o ID da pasta raiz.
+4. Defina `GOOGLE_SERVICE_ACCOUNT_EMAIL` e `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`.
+5. Mantenha a estrutura:
+
+```txt
+Pasta raiz
+|-- CNPS/
+|   |-- CNPS_Membros_29_06_2026.csv
+|   |-- CNPS_Reunioes_29_06_2026.csv
+|   `-- CNPS_Publicacoes/
+`-- CONAPREV/
+```
+
+O backend passa a expor:
+
+```txt
+GET  /api/importacoes/google-drive/status
+POST /api/importacoes/google-drive/sync
+```
+
+Na sincronizacao, o sistema:
+
+- percorre as subpastas da pasta raiz;
+- importa o CSV mais recente de `Membros` e de `Reunioes` por colegiado;
+- atualiza ou cria o registro da pasta `SIGLA_Publicacoes`.
 
 ## Rodar localmente
 
@@ -138,6 +178,8 @@ DELETE /api/publicacoes/:id
 
 GET    /api/importacoes
 POST   /api/importacoes/upload
+GET    /api/importacoes/google-drive/status
+POST   /api/importacoes/google-drive/sync
 ```
 
 ## Publicar backend no Render

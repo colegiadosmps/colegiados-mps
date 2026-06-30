@@ -1,5 +1,5 @@
 import { all, exec, run } from "../database/db.js";
-import { readCsvFile } from "./csvService.js";
+import { parseCsvContent, readCsvFile } from "./csvService.js";
 import { parseFileName } from "./fileNameService.js";
 import {
   normalizeBooleanStatus,
@@ -149,10 +149,7 @@ const replaceMeetings = async ({
   }
 };
 
-export const importCsvFile = async (filePath, originalName) => {
-  const fileInfo = parseFileName(originalName);
-  const { records } = readCsvFile(filePath);
-
+const importParsedCsv = async ({ originalName, records, fileInfo }) => {
   await ensureColegiado(fileInfo.siglaColegiado);
 
   await exec("BEGIN TRANSACTION");
@@ -220,6 +217,28 @@ export const importCsvFile = async (filePath, originalName) => {
 
     throw error;
   }
+};
+
+export const importCsvFile = async (filePath, originalName) => {
+  const fileInfo = parseFileName(originalName);
+  const { records } = readCsvFile(filePath);
+
+  return importParsedCsv({
+    originalName,
+    records,
+    fileInfo,
+  });
+};
+
+export const importCsvContent = async (content, originalName) => {
+  const fileInfo = parseFileName(originalName);
+  const { records } = parseCsvContent(content);
+
+  return importParsedCsv({
+    originalName,
+    records,
+    fileInfo,
+  });
 };
 
 export const listImportacoes = () =>
