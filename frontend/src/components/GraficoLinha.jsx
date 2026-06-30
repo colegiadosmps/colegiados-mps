@@ -7,12 +7,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import ChartCard from "./ChartCard";
 
 const GraficoLinha = ({ data, dataKey = "value", title, color = "#2f7d4f" }) => (
-  <article className="chart-card">
-    <div className="section-heading">
-      <h3>{title}</h3>
-    </div>
+  <ChartCard title={title}>
     <div className="chart-area">
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={data}>
@@ -31,7 +29,7 @@ const GraficoLinha = ({ data, dataKey = "value", title, color = "#2f7d4f" }) => 
         </LineChart>
       </ResponsiveContainer>
     </div>
-  </article>
+  </ChartCard>
 );
 
 export default GraficoLinha;

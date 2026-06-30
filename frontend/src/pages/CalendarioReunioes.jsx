@@ -1,90 +1,119 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import Filtros from "../components/Filtros";
+import { HiOutlineCalendarDays } from "react-icons/hi2";
+import ClearFiltersButton from "../components/ClearFiltersButton";
+import FilterDropdown from "../components/FilterDropdown";
 import GraficoLinha from "../components/GraficoLinha";
 import Loading from "../components/Loading";
+import PageHeader from "../components/PageHeader";
 import TabelaReunioes from "../components/TabelaReunioes";
 import { api } from "../services/api";
+import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
+
+const aggregateByMonth = (rows) => {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const label = row.data_reuniao ? row.data_reuniao.slice(0, 7) : "Sem data";
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+};
 
 const CalendarioReunioes = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reunioes, setReunioes] = useState([]);
   const [colegiados, setColegiados] = useState([]);
-  const [graficos, setGraficos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    colegiado: searchParams.get("colegiado") || "",
-    status: "",
-    data: "",
-    search: "",
+    status: normalizeFilterValue(searchParams.get("status")),
+    tipo: normalizeFilterValue(searchParams.get("tipo")),
+    colegiado: normalizeFilterValue(searchParams.get("colegiado")),
   });
 
   useEffect(() => {
-    Promise.all([
-      api.get("/api/reunioes"),
-      api.get("/api/colegiados"),
-      api.get("/api/dashboard/graficos"),
-    ])
-      .then(([reunioesResult, colegiadosResult, graficosResult]) => {
+    Promise.all([api.get("/api/reunioes"), api.get("/api/colegiados")])
+      .then(([reunioesResult, colegiadosResult]) => {
         setReunioes(reunioesResult);
         setColegiados(colegiadosResult);
-        setGraficos(graficosResult);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredReunioes = reunioes.filter((reuniao) => {
-    const searchTerm = filters.search.toLowerCase();
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.status !== ALL_VALUE) {
+      params.set("status", filters.status);
+    }
+    if (filters.tipo !== ALL_VALUE) {
+      params.set("tipo", filters.tipo);
+    }
+    if (filters.colegiado !== ALL_VALUE) {
+      params.set("colegiado", filters.colegiado);
+    }
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
-    return (
-      (!filters.colegiado || reuniao.sigla_colegiado === filters.colegiado) &&
-      (!filters.status || reuniao.status_reuniao === filters.status) &&
-      (!filters.data || reuniao.data_reuniao === filters.data) &&
-      (!searchTerm ||
-        reuniao.classificacao_pauta?.toLowerCase().includes(searchTerm) ||
-        reuniao.descricao_pauta?.toLowerCase().includes(searchTerm))
-    );
-  });
+  const filteredReunioes = useMemo(() => {
+    const tipoMap = new Map(colegiados.map((item) => [item.sigla, item.tipo]));
+    return reunioes.filter((item) => {
+      const matchesStatus =
+        filters.status === ALL_VALUE || item.status_reuniao === filters.status;
+      const matchesSigla =
+        filters.colegiado === ALL_VALUE || item.sigla_colegiado === filters.colegiado;
+      const matchesTipo =
+        filters.tipo === ALL_VALUE || tipoMap.get(item.sigla_colegiado) === filters.tipo;
+      return matchesStatus && matchesSigla && matchesTipo;
+    });
+  }, [colegiados, filters, reunioes]);
 
-  if (loading || !graficos) {
+  if (loading) {
     return <Loading label="Carregando calendario de reunioes..." />;
   }
 
   return (
     <div className="page-content">
-      <Filtros title="Calendario de reunioes">
-        <label>
-          Colegiado
-          <select value={filters.colegiado} onChange={(event) => setFilters({ ...filters, colegiado: event.target.value })}>
-            <option value="">Todos</option>
-            {colegiados.map((colegiado) => (
-              <option key={colegiado.id} value={colegiado.sigla}>{colegiado.sigla}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Status
-          <input value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })} />
-        </label>
-        <label>
-          Data
-          <input type="date" value={filters.data} onChange={(event) => setFilters({ ...filters, data: event.target.value })} />
-        </label>
-        <label>
-          Busca por pauta
-          <input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-        </label>
-      </Filtros>
+      <PageHeader
+        filters={
+          <>
+            <FilterDropdown
+              label="Status"
+              options={buildOptions(reunioes.map((item) => item.status_reuniao))}
+              value={filters.status}
+              onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+            />
+            <FilterDropdown
+              label="Tipo de Colegiado"
+              options={buildOptions(colegiados.map((item) => item.tipo))}
+              value={filters.tipo}
+              onChange={(value) => setFilters((current) => ({ ...current, tipo: value }))}
+            />
+            <FilterDropdown
+              label="Sigla Colegiado"
+              options={buildOptions(colegiados.map((item) => item.sigla))}
+              value={filters.colegiado}
+              onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
+            />
+            <ClearFiltersButton
+              onClick={() =>
+                setFilters({ status: ALL_VALUE, tipo: ALL_VALUE, colegiado: ALL_VALUE })
+              }
+            />
+          </>
+        }
+        icon={HiOutlineCalendarDays}
+        metricLabel="Reunioes filtradas"
+        metricValue={filteredReunioes.length}
+        subtitle="Quando o filtro muda, quantidade, tabela e grafico mensal mudam juntos."
+        title="Calendario de Reunioes"
+      />
 
       <section className="charts-grid single-chart">
-        <GraficoLinha data={graficos.reunioes_por_mes} title="Reunioes por mes" />
+        <GraficoLinha data={aggregateByMonth(filteredReunioes)} title="Reunioes por Mes" />
       </section>
 
       <section className="content-card">
-        <div className="section-heading">
-          <h2>Agenda e calendario</h2>
-          <p>{filteredReunioes.length} reuniao(oes) encontradas.</p>
-        </div>
         <TabelaReunioes reunioes={filteredReunioes} />
       </section>
     </div>

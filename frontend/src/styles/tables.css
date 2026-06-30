@@ -1,35 +1,56 @@
-.table-shell {
-  overflow-x: auto;
-  border-radius: 20px;
+.powerbi-table-shell {
+  overflow: auto;
+  border-radius: 22px;
   border: 1px solid var(--border);
+  background: #fff;
 }
 
-.data-table {
+.powerbi-table {
   width: 100%;
+  min-width: 860px;
   border-collapse: collapse;
-  min-width: 780px;
   background: var(--bg-card-strong);
 }
 
-.data-table th,
-.data-table td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(15, 39, 71, 0.08);
-  vertical-align: top;
+.powerbi-table thead {
+  background: linear-gradient(135deg, #12689a, #0b5f8f);
 }
 
-.data-table thead {
-  background: #eef4fb;
-}
-
-.data-table th {
-  color: #28476a;
-  font-size: 0.82rem;
+.powerbi-table th {
+  color: #fff;
+  font-size: 0.79rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: 0.95rem 1rem;
+  white-space: nowrap;
 }
 
-.data-table tbody tr:hover {
-  background: rgba(31, 79, 130, 0.03);
+.powerbi-table td {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid rgba(11, 47, 79, 0.08);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.powerbi-table tbody tr:nth-child(even) {
+  background: #f4f7fa;
+}
+
+.powerbi-table tbody tr:hover {
+  background: rgba(18, 104, 154, 0.06);
+}
+
+.powerbi-table .cell-wrap {
+  white-space: pre-wrap;
+}
+
+.powerbi-table .cell-url a {
+  color: var(--bg-main);
+  text-decoration: underline;
+}
+
+.table-caption {
+  color: var(--text-soft);
+  margin-bottom: 0.75rem;
 }

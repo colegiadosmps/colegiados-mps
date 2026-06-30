@@ -4,15 +4,18 @@ const CardColegiado = ({ colegiado }) => (
   <article className="entity-card">
     <div className="entity-card__header">
       <span className="pill">{colegiado.sigla}</span>
-      <span className="muted">{colegiado.ultima_atualizacao || "Sem base"}</span>
+      <span className={`badge ${colegiado.ativo === "Sim" ? "success" : "danger"}`}>
+        {colegiado.tipo || "Nao informado"}
+      </span>
     </div>
 
     <h3>{colegiado.nome}</h3>
+    <p className="muted">{colegiado.ultima_atualizacao || "Sem base sincronizada"}</p>
 
     <div className="entity-card__stats">
       <div>
         <strong>{colegiado.total_membros}</strong>
-        <span>Membros</span>
+        <span>Integrantes</span>
       </div>
       <div>
         <strong>{colegiado.total_reunioes}</strong>

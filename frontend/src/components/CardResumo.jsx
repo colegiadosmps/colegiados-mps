@@ -1,9 +1,5 @@
-const CardResumo = ({ titulo, valor, detalhe }) => (
-  <article className="summary-card">
-    <p>{titulo}</p>
-    <strong>{valor}</strong>
-    <span>{detalhe}</span>
-  </article>
-);
+import MetricCard from "./MetricCard";
+
+const CardResumo = ({ titulo, valor }) => <MetricCard label={titulo} value={valor} />;
 
 export default CardResumo;

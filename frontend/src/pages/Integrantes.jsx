@@ -1,105 +1,156 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import Filtros from "../components/Filtros";
+import { HiOutlineUsers } from "react-icons/hi2";
+import ClearFiltersButton from "../components/ClearFiltersButton";
+import FilterBox from "../components/FilterBox";
+import FilterDropdown from "../components/FilterDropdown";
 import GraficoBarras from "../components/GraficoBarras";
-import GraficoPizza from "../components/GraficoPizza";
 import Loading from "../components/Loading";
+import PageHeader from "../components/PageHeader";
 import TabelaMembros from "../components/TabelaMembros";
 import { api } from "../services/api";
+import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
+
+const aggregateBy = (rows, key) => {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const label = row[key] || "Nao informado";
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
+};
 
 const Integrantes = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [membros, setMembros] = useState([]);
   const [colegiados, setColegiados] = useState([]);
-  const [graficos, setGraficos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    search: "",
-    colegiado: searchParams.get("colegiado") || "",
-    ativo: "",
-    tipo_vinculo: "",
-    papel: "",
+    colegiado: normalizeFilterValue(searchParams.get("colegiado")),
+    nome: searchParams.get("nome") || "",
+    tipo_vinculo: normalizeFilterValue(searchParams.get("tipo_vinculo")),
+    papel: normalizeFilterValue(searchParams.get("papel")),
   });
 
   useEffect(() => {
-    Promise.all([
-      api.get("/api/membros"),
-      api.get("/api/colegiados"),
-      api.get("/api/dashboard/graficos"),
-    ])
-      .then(([membrosResult, colegiadosResult, graficosResult]) => {
+    Promise.all([api.get("/api/membros"), api.get("/api/colegiados")])
+      .then(([membrosResult, colegiadosResult]) => {
         setMembros(membrosResult);
         setColegiados(colegiadosResult);
-        setGraficos(graficosResult);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredMembros = membros.filter((membro) => {
-    const searchTerm = filters.search.toLowerCase();
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.colegiado !== ALL_VALUE) {
+      params.set("colegiado", filters.colegiado);
+    }
+    if (filters.nome) {
+      params.set("nome", filters.nome);
+    }
+    if (filters.tipo_vinculo !== ALL_VALUE) {
+      params.set("tipo_vinculo", filters.tipo_vinculo);
+    }
+    if (filters.papel !== ALL_VALUE) {
+      params.set("papel", filters.papel);
+    }
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
-    return (
-      (!filters.colegiado || membro.sigla_colegiado === filters.colegiado) &&
-      (!filters.ativo || membro.ativo === filters.ativo) &&
-      (!filters.tipo_vinculo || membro.tipo_vinculo === filters.tipo_vinculo) &&
-      (!filters.papel || membro.papel === filters.papel) &&
-      (!searchTerm ||
-        membro.nome_membro?.toLowerCase().includes(searchTerm) ||
-        membro.detalhamento_papel?.toLowerCase().includes(searchTerm))
-    );
-  });
+  const filteredMembros = useMemo(() => {
+    const searchTerm = filters.nome.toLowerCase();
+    return membros.filter((membro) => {
+      const matchesColegiado =
+        filters.colegiado === ALL_VALUE || membro.sigla_colegiado === filters.colegiado;
+      const matchesNome =
+        !searchTerm || membro.nome_membro?.toLowerCase().includes(searchTerm);
+      const matchesTipo =
+        filters.tipo_vinculo === ALL_VALUE || membro.tipo_vinculo === filters.tipo_vinculo;
+      const matchesPapel = filters.papel === ALL_VALUE || membro.papel === filters.papel;
+      return matchesColegiado && matchesNome && matchesTipo && matchesPapel;
+    });
+  }, [filters, membros]);
 
-  if (loading || !graficos) {
+  if (loading) {
     return <Loading label="Carregando integrantes..." />;
   }
 
   return (
     <div className="page-content">
-      <Filtros title="Consulta de integrantes">
-        <label>
-          Buscar por nome
-          <input value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-        </label>
-        <label>
-          Colegiado
-          <select value={filters.colegiado} onChange={(event) => setFilters({ ...filters, colegiado: event.target.value })}>
-            <option value="">Todos</option>
-            {colegiados.map((colegiado) => (
-              <option key={colegiado.id} value={colegiado.sigla}>{colegiado.sigla}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Ativo
-          <select value={filters.ativo} onChange={(event) => setFilters({ ...filters, ativo: event.target.value })}>
-            <option value="">Todos</option>
-            <option value="Sim">Ativo</option>
-            <option value="Nao">Inativo</option>
-          </select>
-        </label>
-        <label>
-          Tipo de vinculo
-          <input value={filters.tipo_vinculo} onChange={(event) => setFilters({ ...filters, tipo_vinculo: event.target.value })} />
-        </label>
-        <label>
-          Papel
-          <input value={filters.papel} onChange={(event) => setFilters({ ...filters, papel: event.target.value })} />
-        </label>
-      </Filtros>
-
-      <section className="charts-grid">
-        <GraficoBarras data={graficos.membros_por_colegiado} title="Integrantes por colegiado" />
-        <GraficoPizza data={graficos.membros_ativos_inativos} title="Ativos x inativos" />
-        <GraficoBarras data={graficos.membros_por_tipo_vinculo} title="Integrantes por tipo de vinculo" color="#5c8fc7" />
-        <GraficoBarras data={graficos.membros_por_papel} title="Integrantes por papel" color="#2f7d4f" />
-      </section>
+      <PageHeader
+        filters={
+          <>
+            <FilterDropdown
+              label="Tipo/Colegiado"
+              options={buildOptions(colegiados.map((item) => item.sigla))}
+              value={filters.colegiado}
+              onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
+            />
+            <FilterBox label="Nome">
+              <input
+                value={filters.nome}
+                onChange={(event) => setFilters((current) => ({ ...current, nome: event.target.value }))}
+                placeholder="Buscar nome"
+              />
+            </FilterBox>
+            <FilterDropdown
+              label="Tipo de Vinculo"
+              options={buildOptions(membros.map((item) => item.tipo_vinculo))}
+              value={filters.tipo_vinculo}
+              onChange={(value) =>
+                setFilters((current) => ({ ...current, tipo_vinculo: value }))
+              }
+            />
+            <FilterDropdown
+              label="Papel"
+              options={buildOptions(membros.map((item) => item.papel))}
+              value={filters.papel}
+              onChange={(value) => setFilters((current) => ({ ...current, papel: value }))}
+            />
+            <ClearFiltersButton
+              onClick={() =>
+                setFilters({
+                  colegiado: ALL_VALUE,
+                  nome: "",
+                  tipo_vinculo: ALL_VALUE,
+                  papel: ALL_VALUE,
+                })
+              }
+            />
+          </>
+        }
+        icon={HiOutlineUsers}
+        metricLabel="Integrantes filtrados"
+        metricValue={filteredMembros.length}
+        subtitle="Tabela, quantidade e graficos reagem aos mesmos filtros."
+        title="Integrantes"
+      />
 
       <section className="content-card">
-        <div className="section-heading">
-          <h2>Base de integrantes</h2>
-          <p>{filteredMembros.length} registro(s) encontrados.</p>
-        </div>
         <TabelaMembros membros={filteredMembros} />
+      </section>
+
+      <section className="charts-grid">
+        <GraficoBarras
+          data={aggregateBy(filteredMembros, "sigla_colegiado")}
+          title="Membros por Colegiado"
+        />
+        <GraficoBarras
+          data={aggregateBy(filteredMembros, "tipo_vinculo")}
+          title="Tipo de Vinculo"
+          color="#12689a"
+        />
+        <GraficoBarras
+          data={aggregateBy(filteredMembros, "papel")}
+          title="Papel"
+          color="#0b5f8f"
+        />
+        <GraficoBarras
+          data={aggregateBy(filteredMembros, "ativo")}
+          title="Ativos x Inativos"
+          color="#2f7d4f"
+        />
       </section>
     </div>
   );
