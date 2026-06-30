@@ -17,21 +17,40 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3333;
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 const schemaPath = path.resolve(process.cwd(), "src/database/schema.sql");
+const normalizeOrigin = (value) => value.replace(/\/+$/, "");
+const configuredOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URLS,
+  "http://localhost:5173",
+]
+  .filter(Boolean)
+  .flatMap((value) => value.split(","))
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .map(normalizeOrigin);
 
-const allowedOrigins = ["http://localhost:5173", frontendUrl];
+const allowedOrigins = new Set(configuredOrigins);
+const isNetlifyOrigin = (origin) =>
+  /^https:\/\/[a-z0-9-]+\.netlify\.app$/i.test(origin);
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const normalizedOrigin = origin ? normalizeOrigin(origin) : origin;
+
+      if (
+        !normalizedOrigin ||
+        allowedOrigins.has(normalizedOrigin) ||
+        isNetlifyOrigin(normalizedOrigin)
+      ) {
         callback(null, true);
         return;
       }
 
       callback(new Error("Origem nao permitida pelo CORS."));
     },
+    optionsSuccessStatus: 204,
   }),
 );
 
