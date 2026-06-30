@@ -18,8 +18,8 @@ const PageHeader = ({
           <div className="page-header__heading">
             <p className="eyebrow eyebrow--light page-header__eyebrow">Painel de consulta</p>
           </div>
+          <h2 className="page-header__title">{title}</h2>
         </div>
-        <h2 className="page-header__title">{title}</h2>
         {subtitle ? <p className="page-header__subtitle">{subtitle}</p> : null}
       </div>
       {filters ? <div className="page-header__filters">{filters}</div> : null}
