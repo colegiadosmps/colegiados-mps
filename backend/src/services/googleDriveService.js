@@ -8,6 +8,13 @@ const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
 const DEFAULT_PUBLICATIONS_SUFFIX = "_Publicacoes";
 
+const sanitizePrivateKey = (value) =>
+  value
+    .trim()
+    .replace(/^"(.*)"$/s, "$1")
+    .replace(/^'(.*)'$/s, "$1")
+    .replace(/\\n/g, "\n");
+
 const getConfig = () => ({
   rootFolderId:
     process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ||
@@ -15,13 +22,10 @@ const getConfig = () => ({
     "",
   serviceAccountEmail:
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_CLIENT_EMAIL || "",
-  privateKey: (
+  privateKey: sanitizePrivateKey(
     process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    ""
-  ).replace(
-    /\\n/g,
-    "\n",
+      process.env.GOOGLE_PRIVATE_KEY ||
+      "",
   ),
   publicationsSuffix:
     process.env.GOOGLE_DRIVE_PUBLICATIONS_SUFFIX || DEFAULT_PUBLICATIONS_SUFFIX,
