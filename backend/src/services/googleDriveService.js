@@ -100,6 +100,28 @@ const getAccessToken = async () => {
 const createDriveClient = async () => {
   const accessToken = await getAccessToken();
 
+  const getFile = async (fileId, fields = "id,name,mimeType,webViewLink") => {
+    const url = new URL(`${DRIVE_FILES_ENDPOINT}/${fileId}`);
+    url.searchParams.set("fields", fields);
+    url.searchParams.set("supportsAllDrives", "true");
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        payload.error?.message || "Falha ao consultar pasta/arquivo no Google Drive.",
+      );
+    }
+
+    return payload;
+  };
+
   const listFiles = async ({
     parentId,
     mimeType,
@@ -155,6 +177,7 @@ const createDriveClient = async () => {
   };
 
   return {
+    getFile,
     listFiles,
     downloadFile,
   };
@@ -216,6 +239,7 @@ export const getGoogleDriveStatus = () => {
 export const syncGoogleDrive = async () => {
   const config = getConfig();
   const drive = await createDriveClient();
+  const rootFolder = await drive.getFile(config.rootFolderId);
   const colegiadoFolders = await drive.listFiles({
     parentId: config.rootFolderId,
     mimeType: "application/vnd.google-apps.folder",
@@ -224,11 +248,23 @@ export const syncGoogleDrive = async () => {
   const summary = {
     folders_scanned: colegiadoFolders.length,
     files_found: 0,
+    root_folder: {
+      id: rootFolder.id,
+      name: rootFolder.name,
+    },
     imported_files: [],
     publication_folders: [],
     skipped_files: [],
     errors: [],
   };
+
+  if (colegiadoFolders.length === 0) {
+    return {
+      message:
+        "Nenhuma subpasta de colegiado foi encontrada na pasta raiz configurada do Google Drive.",
+      ...summary,
+    };
+  }
 
   for (const colegiadoFolder of colegiadoFolders) {
     const siglaColegiado = colegiadoFolder.name.trim().toUpperCase();

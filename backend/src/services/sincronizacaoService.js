@@ -6,6 +6,10 @@ const buildStatus = (summary) => {
     return "Concluida com ressalvas";
   }
 
+  if (summary.folders_scanned === 0) {
+    return "Sem pastas encontradas";
+  }
+
   if (summary.imported_files.length === 0 && summary.publication_folders.length === 0) {
     return "Sem atualizacoes";
   }
@@ -18,6 +22,12 @@ const buildObservacao = (summary) => {
 
   if (summary.skipped_files.length > 0) {
     parts.push(`${summary.skipped_files.length} arquivo(s) ignorado(s) por padrao invalido.`);
+  }
+
+  if (summary.folders_scanned === 0) {
+    parts.push(
+      "A pasta raiz foi acessada, mas nenhuma subpasta de colegiado foi localizada. Verifique o ID configurado e o compartilhamento com a conta de servico.",
+    );
   }
 
   if (summary.errors.length > 0) {
