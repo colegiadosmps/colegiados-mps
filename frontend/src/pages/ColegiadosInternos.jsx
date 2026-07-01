@@ -8,12 +8,19 @@ import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
-const typeOrder = ["Camara", "Comite", "Conselho", "Grupo de Trabalho", "Subcomite"];
+const normalizeType = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const typeOrder = ["camara", "comite", "conselho", "grupo de trabalho", "subcomite"];
 
 const sortTypes = (entries) =>
   [...entries].sort(([left], [right]) => {
-    const leftIndex = typeOrder.indexOf(left);
-    const rightIndex = typeOrder.indexOf(right);
+    const leftIndex = typeOrder.indexOf(normalizeType(left));
+    const rightIndex = typeOrder.indexOf(normalizeType(right));
     if (leftIndex === -1 && rightIndex === -1) {
       return left.localeCompare(right);
     }
@@ -36,7 +43,7 @@ const ColegiadosInternos = () => {
   });
 
   useEffect(() => {
-    api.get("/api/colegiados?tipo=Interno").then(setColegiados);
+    api.get("/api/colegiados?categoria=Interno").then(setColegiados);
   }, []);
 
   useEffect(() => {

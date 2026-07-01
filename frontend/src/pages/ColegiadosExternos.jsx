@@ -32,7 +32,7 @@ const ColegiadosExternos = () => {
   });
 
   useEffect(() => {
-    api.get("/api/colegiados?tipo=Externo").then(setColegiados);
+    api.get("/api/colegiados?categoria=Externo").then(setColegiados);
   }, []);
 
   useEffect(() => {

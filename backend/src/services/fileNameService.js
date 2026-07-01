@@ -1,5 +1,15 @@
 const filePattern =
-  /^(?<sigla>[A-Za-z0-9]+)_(?<tipo>Membros|Reunioes)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})\.csv$/i;
+  /^(?<sigla>[A-Za-z0-9_]+)_(?<tipo>Membros|Reunioes|Reuniao)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})\.csv$/i;
+
+const normalizeFileType = (value) => {
+  const normalized = value.toLowerCase();
+
+  if (normalized === "membros") {
+    return "Membros";
+  }
+
+  return "Reunioes";
+};
 
 export const parseFileName = (fileName) => {
   const match = fileName.match(filePattern);
@@ -14,7 +24,7 @@ export const parseFileName = (fileName) => {
 
   return {
     siglaColegiado: sigla.toUpperCase(),
-    tipo: tipo[0].toUpperCase() + tipo.slice(1).toLowerCase(),
+    tipo: normalizeFileType(tipo),
     dataBase: `${year}-${month}-${day}`,
   };
 };

@@ -31,7 +31,7 @@ const Dashboard = () => {
       api.get("/api/dashboard"),
       api.get("/api/membros"),
       api.get("/api/reunioes"),
-      api.get("/api/colegiados?tipo=Externo"),
+      api.get("/api/colegiados?categoria=Externo"),
     ])
       .then(([resumoResult, membrosResult, reunioesResult, externosResult]) => {
         setResumo({
@@ -49,7 +49,7 @@ const Dashboard = () => {
       return null;
     }
 
-    const internos = resumo.colegiados_com_resumo.filter((item) => item.tipo === "Interno");
+    const internos = resumo.colegiados_com_resumo.filter((item) => item.categoria === "Interno");
     const externos = resumo.colegiados_externos_detalhe || [];
 
     return {

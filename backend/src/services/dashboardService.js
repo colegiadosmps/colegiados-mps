@@ -13,8 +13,8 @@ export const getDashboardResumo = async () => {
     colegiadosComResumo,
   ] = await Promise.all([
     get("SELECT COUNT(*) AS total FROM colegiados"),
-    get("SELECT COUNT(*) AS total FROM colegiados WHERE tipo = 'Interno'"),
-    get("SELECT COUNT(*) AS total FROM colegiados WHERE tipo = 'Externo'"),
+    get("SELECT COUNT(*) AS total FROM colegiados WHERE categoria = 'Interno'"),
+    get("SELECT COUNT(*) AS total FROM colegiados WHERE categoria = 'Externo'"),
     get("SELECT COUNT(*) AS total FROM membros"),
     get("SELECT COUNT(*) AS total FROM membros WHERE ativo = 'Sim'"),
     get("SELECT COUNT(*) AS total FROM reunioes"),
@@ -29,6 +29,7 @@ export const getDashboardResumo = async () => {
       `SELECT
         c.sigla,
         c.nome,
+        c.categoria,
         c.tipo,
         c.competencia,
         c.ativo,
@@ -137,6 +138,7 @@ export const getDashboardGraficos = async () => {
     all(
       `SELECT COALESCE(tipo, 'Nao informado') AS label, COUNT(*) AS value
        FROM colegiados
+       WHERE categoria = 'Interno'
        GROUP BY tipo
        ORDER BY value DESC, label`,
     ),

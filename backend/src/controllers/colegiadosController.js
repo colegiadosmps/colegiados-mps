@@ -5,7 +5,13 @@ export const listarColegiados = async (_request, response) => {
     const conditions = [];
     const params = [];
 
-    if (_request.query.tipo) {
+    if (_request.query.categoria) {
+      conditions.push("c.categoria = ?");
+      params.push(_request.query.categoria);
+    } else if (_request.query.tipo && ["Interno", "Externo"].includes(_request.query.tipo)) {
+      conditions.push("c.categoria = ?");
+      params.push(_request.query.tipo);
+    } else if (_request.query.tipo) {
       conditions.push("c.tipo = ?");
       params.push(_request.query.tipo);
     }

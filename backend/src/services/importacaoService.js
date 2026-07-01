@@ -7,6 +7,33 @@ import {
   normalizeText,
 } from "../utils/formatters.js";
 
+const normalizeIdentifier = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+
+const normalizeRecord = (record) =>
+  Object.fromEntries(
+    Object.entries(record).map(([key, value]) => [normalizeIdentifier(key), value]),
+  );
+
+const getFieldValue = (record, aliases) => {
+  const normalized = normalizeRecord(record);
+
+  for (const alias of aliases) {
+    const value = normalizeText(normalized[alias]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const registerImport = async ({
   arquivo,
   tipo,
@@ -41,8 +68,8 @@ const registerImport = async ({
 
 const ensureColegiado = async (siglaColegiado) => {
   await run(
-    `INSERT INTO colegiados (sigla, nome, tipo, descricao, ativo, updated_at)
-     VALUES (?, ?, ?, ?, 'Sim', datetime('now'))
+    `INSERT INTO colegiados (sigla, nome, categoria, tipo, descricao, ativo, updated_at)
+     VALUES (?, ?, 'Interno', ?, ?, 'Sim', datetime('now'))
      ON CONFLICT(sigla) DO UPDATE SET updated_at = datetime('now')`,
     [
       siglaColegiado,
@@ -149,6 +176,142 @@ const replaceMeetings = async ({
   }
 };
 
+const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
+  await run("DELETE FROM colegiados WHERE categoria = 'Interno'");
+
+  for (const record of records) {
+    const sigla =
+      getFieldValue(record, ["SIGLA", "SIGLA_COLEGIADO"]) || "NAO_INFORMADO";
+    const nome =
+      getFieldValue(record, ["COLEGIADO", "NOME", "NOME_COLEGIADO"]) || sigla;
+
+    await run(
+      `INSERT INTO colegiados (
+        sigla,
+        nome,
+        categoria,
+        tipo,
+        descricao,
+        competencia,
+        sigla_colegiado_pai,
+        unidade,
+        sigla_unidade_pai,
+        ato_criacao,
+        data_instituicao,
+        data_termino,
+        qtd_min_reunioes_anuais,
+        regra_quorum,
+        observacoes,
+        ativo,
+        updated_at
+      ) VALUES (?, ?, 'Interno', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [
+        normalizeIdentifier(sigla),
+        nome,
+        getFieldValue(record, ["TIPO", "TIPO_COLEGIADO"]) || "Nao informado",
+        getFieldValue(record, ["DESCRICAO", "FINALIDADE"]) || null,
+        getFieldValue(record, ["COMPETENCIAS", "COMPETENCIA"]) || null,
+        getFieldValue(record, ["COLEGIADO_PAI", "SIGLA_COLEGIADO_PAI"]) || null,
+        getFieldValue(record, ["UNIDADE"]) || null,
+        getFieldValue(record, ["SIGLA_UNIDADE_PAI"]) || null,
+        getFieldValue(record, ["ATO_DE_CRIACAO", "ATO_CRIACAO"]) || null,
+        normalizeDate(getFieldValue(record, ["DATA_DE_INSTITUICAO", "DATA_INSTITUICAO"])),
+        normalizeDate(getFieldValue(record, ["DATA_DE_TERMINO", "DATA_TERMINO"])),
+        getFieldValue(record, ["QUANTIDADE_MINIMA_DE_REUNIOES_ANUAIS", "QTD_MINIMA_REUNIOES_ANUAIS"]) || null,
+        getFieldValue(record, ["REGRA_DE_QUORUM", "REGRA_QUORUM"]) || null,
+        getFieldValue(record, ["OBSERVACOES", "OBSERVACAO"]) || null,
+        normalizeBooleanStatus(getFieldValue(record, ["STATUS", "ATIVO"])),
+      ],
+    );
+  }
+
+  await registerImport({
+    arquivo: arquivoOrigem,
+    tipo: "Colegiados",
+    siglaColegiado: "BASE",
+    dataBase: null,
+    quantidadeRegistros: records.length,
+    status: "Importado com sucesso",
+    observacao: "Colegiados internos carregados com sucesso.",
+  });
+
+  return {
+    arquivo: arquivoOrigem,
+    tipo: "Colegiados",
+    sigla_colegiado: "BASE",
+    data_base: null,
+    quantidade_registros: records.length,
+    status: "Importado com sucesso",
+  };
+};
+
+const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
+  await run("DELETE FROM colegiados WHERE categoria = 'Externo'");
+
+  const usedSiglas = new Set();
+
+  for (const record of records) {
+    const nome =
+      getFieldValue(record, ["COLEGIADO", "NOME", "NOME_COLEGIADO"]) || "Nao informado";
+    const orgao = getFieldValue(record, ["ORGAO"]) || "Nao informado";
+    const baseSigla = normalizeIdentifier(
+      getFieldValue(record, ["SIGLA"]) || `EXT_${nome}_${orgao}`,
+    );
+
+    let sigla = baseSigla || "EXT_NAO_INFORMADO";
+    let counter = 2;
+    while (usedSiglas.has(sigla)) {
+      sigla = `${baseSigla}_${counter}`;
+      counter += 1;
+    }
+    usedSiglas.add(sigla);
+
+    await run(
+      `INSERT INTO colegiados (
+        sigla,
+        nome,
+        categoria,
+        tipo,
+        descricao,
+        orgao,
+        dispositivo_legal,
+        ativo,
+        updated_at
+      ) VALUES (?, ?, 'Externo', 'Externo', ?, ?, ?, 'Sim', datetime('now'))`,
+      [
+        sigla,
+        nome,
+        getFieldValue(record, [
+          "NATUREZA_COMPETENCIA_OU_FINALIDADE",
+          "NATUREZA_COMPETENCIA_FINALIDADE",
+          "NATUREZA_FINALIDADE",
+        ]) || null,
+        orgao,
+        getFieldValue(record, ["DISPOSITIVO_LEGAL"]) || null,
+      ],
+    );
+  }
+
+  await registerImport({
+    arquivo: arquivoOrigem,
+    tipo: "Colegiados_Externos",
+    siglaColegiado: "BASE",
+    dataBase: null,
+    quantidadeRegistros: records.length,
+    status: "Importado com sucesso",
+    observacao: "Colegiados externos carregados com sucesso.",
+  });
+
+  return {
+    arquivo: arquivoOrigem,
+    tipo: "Colegiados_Externos",
+    sigla_colegiado: "BASE",
+    data_base: null,
+    quantidade_registros: records.length,
+    status: "Importado com sucesso",
+  };
+};
+
 const importParsedCsv = async ({ originalName, records, fileInfo }) => {
   await ensureColegiado(fileInfo.siglaColegiado);
 
@@ -228,6 +391,39 @@ export const importCsvFile = async (filePath, originalName) => {
     records,
     fileInfo,
   });
+};
+
+export const importRootCsvContent = async (content, originalName) => {
+  const { records } = parseCsvContent(content);
+
+  await exec("BEGIN TRANSACTION");
+
+  try {
+    let result = null;
+
+    if (/^colegiados\.csv$/i.test(originalName)) {
+      result = await replaceInternalColegiados({
+        arquivoOrigem: originalName,
+        records,
+      });
+    } else if (/^colegiados_externos\.csv$/i.test(originalName)) {
+      result = await replaceExternalColegiados({
+        arquivoOrigem: originalName,
+        records,
+      });
+    } else {
+      throw new Error("Arquivo raiz nao suportado para importacao automatica.");
+    }
+
+    await exec("COMMIT");
+    return {
+      message: "Arquivo importado com sucesso",
+      ...result,
+    };
+  } catch (error) {
+    await exec("ROLLBACK");
+    throw error;
+  }
 };
 
 export const importCsvContent = async (content, originalName) => {

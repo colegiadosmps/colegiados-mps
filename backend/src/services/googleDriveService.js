@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { get, run } from "../database/db.js";
-import { importCsvContent } from "./importacaoService.js";
+import { importCsvContent, importRootCsvContent } from "./importacaoService.js";
 import { parseFileName } from "./fileNameService.js";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
@@ -240,14 +240,22 @@ export const syncGoogleDrive = async () => {
   const config = getConfig();
   const drive = await createDriveClient();
   const rootFolder = await drive.getFile(config.rootFolderId);
-  const colegiadoFolders = await drive.listFiles({
+  const rootItems = await drive.listFiles({
     parentId: config.rootFolderId,
-    mimeType: "application/vnd.google-apps.folder",
+    fields: "files(id,name,mimeType,webViewLink)",
   });
+  const colegiadoFolders = rootItems.filter(
+    (item) => item.mimeType === "application/vnd.google-apps.folder",
+  );
+  const rootCsvFiles = rootItems.filter(
+    (item) =>
+      item.mimeType !== "application/vnd.google-apps.folder" &&
+      /^(Colegiados\.csv|Colegiados_Externos\.csv)$/i.test(item.name),
+  );
 
   const summary = {
     folders_scanned: colegiadoFolders.length,
-    files_found: 0,
+    files_found: rootCsvFiles.length,
     root_folder: {
       id: rootFolder.id,
       name: rootFolder.name,
@@ -257,6 +265,23 @@ export const syncGoogleDrive = async () => {
     skipped_files: [],
     errors: [],
   };
+
+  for (const csvFile of rootCsvFiles) {
+    try {
+      const content = await drive.downloadFile(csvFile.id);
+      const result = await importRootCsvContent(content, csvFile.name);
+      summary.imported_files.push({
+        ...result,
+        drive_file_id: csvFile.id,
+      });
+    } catch (error) {
+      summary.errors.push({
+        file: csvFile.name,
+        drive_file_id: csvFile.id,
+        message: error.message,
+      });
+    }
+  }
 
   if (colegiadoFolders.length === 0) {
     return {

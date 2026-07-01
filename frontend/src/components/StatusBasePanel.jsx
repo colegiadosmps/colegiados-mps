@@ -100,8 +100,8 @@ const StatusBasePanel = ({ onClose, open }) => {
       return null;
     }
 
-    const internos = payload.colegiados.filter((item) => item.tipo === "Interno");
-    const externos = payload.colegiados.filter((item) => item.tipo === "Externo");
+    const internos = payload.colegiados.filter((item) => item.categoria === "Interno");
+    const externos = payload.colegiados.filter((item) => item.categoria === "Externo");
     const csvFiles =
       payload.detalheUltimaSincronizacao?.arquivos?.map((item) => item.arquivo) || [];
     const foundFolders = Array.from(

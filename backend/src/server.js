@@ -74,7 +74,19 @@ const ensureColumn = async (tableName, columnName, definition) => {
 };
 
 const ensureSchemaCompatibility = async () => {
+  await ensureColumn("colegiados", "categoria", "TEXT");
   await ensureColumn("colegiados", "competencia", "TEXT");
+  await ensureColumn("colegiados", "sigla_colegiado_pai", "TEXT");
+  await ensureColumn("colegiados", "unidade", "TEXT");
+  await ensureColumn("colegiados", "sigla_unidade_pai", "TEXT");
+  await ensureColumn("colegiados", "ato_criacao", "TEXT");
+  await ensureColumn("colegiados", "data_instituicao", "TEXT");
+  await ensureColumn("colegiados", "data_termino", "TEXT");
+  await ensureColumn("colegiados", "qtd_min_reunioes_anuais", "TEXT");
+  await ensureColumn("colegiados", "regra_quorum", "TEXT");
+  await ensureColumn("colegiados", "observacoes", "TEXT");
+  await ensureColumn("colegiados", "orgao", "TEXT");
+  await ensureColumn("colegiados", "dispositivo_legal", "TEXT");
   await ensureColumn("pastas_publicacoes", "drive_folder_id", "TEXT");
 };
 
