@@ -1,31 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  HiOutlineHome,
-} from "react-icons/hi2";
-import CardColegiado from "../components/CardColegiado";
+import { Link } from "react-router-dom";
+import { HiOutlineHome } from "react-icons/hi2";
 import CardResumo from "../components/CardResumo";
-import ClearFiltersButton from "../components/ClearFiltersButton";
-import FilterDropdown from "../components/FilterDropdown";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
-import {
-  ALL_VALUE,
-  buildOptions,
-  normalizeFilterValue,
-} from "../services/filterUtils";
 
-const aggregateBy = (rows, key, valueFilter) => {
+const aggregateBy = (rows, key, fallback = "Nao informado") => {
   const counts = new Map();
 
   rows.forEach((row) => {
-    if (valueFilter && !valueFilter(row)) {
-      return;
-    }
-
-    const label = row[key] || "Nao informado";
+    const label = row[key] || fallback;
     counts.set(label, (counts.get(label) || 0) + 1);
   });
 
@@ -35,159 +21,127 @@ const aggregateBy = (rows, key, valueFilter) => {
 };
 
 const Dashboard = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [resumo, setResumo] = useState(null);
   const [membros, setMembros] = useState([]);
   const [reunioes, setReunioes] = useState([]);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({
-    tipo: normalizeFilterValue(searchParams.get("tipo")),
-    colegiado: normalizeFilterValue(searchParams.get("colegiado")),
-    status: normalizeFilterValue(searchParams.get("status")),
-  });
 
   useEffect(() => {
     Promise.all([
       api.get("/api/dashboard"),
       api.get("/api/membros"),
       api.get("/api/reunioes"),
+      api.get("/api/colegiados?tipo=Externo"),
     ])
-      .then(([resumoResult, membrosResult, reunioesResult]) => {
-        setResumo(resumoResult);
+      .then(([resumoResult, membrosResult, reunioesResult, externosResult]) => {
+        setResumo({
+          ...resumoResult,
+          colegiados_externos_detalhe: externosResult,
+        });
         setMembros(membrosResult);
         setReunioes(reunioesResult);
       })
-      .catch((err) => setError(err.message));
+      .catch((requestError) => setError(requestError.message));
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (filters.tipo !== ALL_VALUE) {
-      params.set("tipo", filters.tipo);
-    }
-    if (filters.colegiado !== ALL_VALUE) {
-      params.set("colegiado", filters.colegiado);
-    }
-    if (filters.status !== ALL_VALUE) {
-      params.set("status", filters.status);
-    }
-    setSearchParams(params, { replace: true });
-  }, [filters, setSearchParams]);
-
-  const filtered = useMemo(() => {
+  const derived = useMemo(() => {
     if (!resumo) {
       return null;
     }
 
-    const filteredColegiados = resumo.colegiados_com_resumo.filter((colegiado) => {
-      const matchesTipo = filters.tipo === ALL_VALUE || colegiado.tipo === filters.tipo;
-      const matchesSigla = filters.colegiado === ALL_VALUE || colegiado.sigla === filters.colegiado;
-      const matchesStatus = filters.status === ALL_VALUE || colegiado.ativo === filters.status;
-      return matchesTipo && matchesSigla && matchesStatus;
-    });
-
-    const allowedSiglas = new Set(filteredColegiados.map((item) => item.sigla));
-    const filteredMembros = membros.filter((item) => {
-      const allowed = allowedSiglas.has(item.sigla_colegiado);
-      const statusMatch = filters.status === ALL_VALUE || item.ativo === filters.status;
-      return allowed && statusMatch;
-    });
-    const filteredReunioes = reunioes.filter((item) => allowedSiglas.has(item.sigla_colegiado));
+    const internos = resumo.colegiados_com_resumo.filter((item) => item.tipo === "Interno");
+    const externos = resumo.colegiados_externos_detalhe || [];
 
     return {
-      colegiados: filteredColegiados,
-      membros: filteredMembros,
-      reunioes: filteredReunioes,
-      totalColegiados: filteredColegiados.length,
-      totalInternos: filteredColegiados.filter((item) => item.tipo === "Interno").length,
-      totalExternos: filteredColegiados.filter((item) => item.tipo === "Externo").length,
-      totalMembros: filteredMembros.length,
-      totalAtivos: filteredMembros.filter((item) => item.ativo === "Sim").length,
-      totalReunioes: filteredReunioes.length,
-      totalPublicacoes: filteredColegiados.filter((item) => item.ultima_atualizacao).length,
+      totalInternos: internos.length,
+      totalExternos: externos.length,
+      totalIntegrantes: membros.length,
+      totalReunioes: reunioes.length,
+      totalPlanejadas: reunioes.filter((item) => item.status_reuniao === "Planejada").length,
+      totalRealizadas: reunioes.filter((item) => item.status_reuniao === "Realizada").length,
+      totalTitulares: membros.filter((item) => item.tipo_vinculo === "Titular").length,
+      totalSuplentes: membros.filter((item) => item.tipo_vinculo === "Suplente").length,
       charts: {
-        colegiadosPorTipo: aggregateBy(filteredColegiados, "tipo"),
-        membrosPorColegiado: aggregateBy(filteredMembros, "sigla_colegiado"),
-        ativosInativos: aggregateBy(filteredMembros, "ativo"),
-        reunioesPorStatus: aggregateBy(filteredReunioes, "status_reuniao"),
+        internosPorTipo: aggregateBy(internos, "tipo"),
+        externosPorOrgao: aggregateBy(
+          externos.map((item) => ({
+            ...item,
+            orgao_resumo: item.orgao || item.sigla || "Nao informado",
+          })),
+          "orgao_resumo",
+        ),
+        integrantesPorColegiado: aggregateBy(membros, "sigla_colegiado"),
+        integrantesPorVinculo: aggregateBy(membros, "tipo_vinculo"),
+        integrantesPorPapel: aggregateBy(membros, "papel"),
+        reunioesPorStatus: aggregateBy(reunioes, "status_reuniao"),
       },
     };
-  }, [filters, membros, reunioes, resumo]);
+  }, [membros, reunioes, resumo]);
 
   if (error) {
     return <div className="empty-state">{error}</div>;
   }
 
-  if (!resumo || !filtered) {
-    return <Loading label="Montando o painel institucional..." />;
+  if (!resumo || !derived) {
+    return <Loading label="Montando dashboard..." />;
   }
-
-  const tipoOptions = buildOptions(resumo.colegiados_com_resumo.map((item) => item.tipo));
-  const colegiadoOptions = buildOptions(resumo.colegiados_com_resumo.map((item) => item.sigla));
-  const statusOptions = buildOptions(["Sim", "Nao"], "Todos");
 
   return (
     <div className="page-content">
       <PageHeader
-        filters={
-          <>
-            <FilterDropdown
-              label="Tipo de Colegiado"
-              options={tipoOptions}
-              value={filters.tipo}
-              onChange={(value) => setFilters((current) => ({ ...current, tipo: value }))}
-            />
-            <FilterDropdown
-              label="Sigla Colegiado"
-              options={colegiadoOptions}
-              value={filters.colegiado}
-              onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
-            />
-            <FilterDropdown
-              label="Status"
-              options={statusOptions}
-              value={filters.status}
-              onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
-            />
-            <ClearFiltersButton
-              onClick={() =>
-                setFilters({ tipo: ALL_VALUE, colegiado: ALL_VALUE, status: ALL_VALUE })
-              }
-            />
-          </>
-        }
+        filters={null}
         icon={HiOutlineHome}
-        subtitle="Visao consolidada dos colegiados, integrantes, reunioes e publicacoes da base institucional."
+        subtitle="Visao geral dos colegiados, integrantes e reunioes carregados no sistema."
         title="Dashboard"
       />
 
       <section className="metric-grid">
-        <CardResumo titulo="Total de Colegiados" valor={filtered.totalColegiados} />
-        <CardResumo titulo="Colegiados Internos" valor={filtered.totalInternos} />
-        <CardResumo titulo="Colegiados Externos" valor={filtered.totalExternos} />
-        <CardResumo titulo="Integrantes" valor={filtered.totalMembros} />
-        <CardResumo titulo="Ativos" valor={filtered.totalAtivos} />
-        <CardResumo titulo="Reunioes" valor={filtered.totalReunioes} />
-        <CardResumo titulo="Publicacoes" valor={filtered.totalPublicacoes} />
+        <Link className="dashboard-card-link" to="/colegiados/internos">
+          <CardResumo titulo="Total de Colegiados Internos" valor={derived.totalInternos} />
+        </Link>
+        <Link className="dashboard-card-link" to="/colegiados/externos">
+          <CardResumo titulo="Total de Colegiados Externos" valor={derived.totalExternos} />
+        </Link>
+        <Link className="dashboard-card-link" to="/integrantes">
+          <CardResumo titulo="Total de Integrantes" valor={derived.totalIntegrantes} />
+        </Link>
+        <CardResumo titulo="Total de Reunioes" valor={derived.totalReunioes} />
+        <CardResumo titulo="Reunioes Planejadas" valor={derived.totalPlanejadas} />
+        <CardResumo titulo="Reunioes Realizadas" valor={derived.totalRealizadas} />
+        <CardResumo titulo="Total de Titulares" valor={derived.totalTitulares} />
+        <CardResumo titulo="Total de Suplentes" valor={derived.totalSuplentes} />
       </section>
 
       <section className="charts-grid">
-        <GraficoBarras data={filtered.charts.colegiadosPorTipo} title="Colegiados Internos x Externos" />
-        <GraficoBarras data={filtered.charts.membrosPorColegiado} title="Membros por Colegiado" color="#12689a" />
-        <GraficoBarras data={filtered.charts.ativosInativos} title="Membros Ativos x Inativos" color="#2f7d4f" />
-        <GraficoBarras data={filtered.charts.reunioesPorStatus} title="Reunioes por Status" color="#0b5f8f" />
-      </section>
-
-      <section>
-        <div className="section-heading">
-          <h2>Colegiados em destaque</h2>
-          <p>Atalhos de consulta com detalhes, integrantes e publicacoes por colegiado.</p>
-        </div>
-        <div className="entity-grid">
-          {filtered.colegiados.map((colegiado) => (
-            <CardColegiado key={colegiado.sigla} colegiado={colegiado} />
-          ))}
-        </div>
+        <GraficoBarras
+          data={derived.charts.internosPorTipo}
+          title="Distribuicao de Colegiados Internos por Tipo"
+        />
+        <GraficoBarras
+          color="#12689a"
+          data={derived.charts.externosPorOrgao}
+          title="Quantidade de Colegiados Externos por Orgao"
+        />
+        <GraficoBarras
+          color="#0b5f8f"
+          data={derived.charts.integrantesPorColegiado}
+          title="Quantidade de Integrantes por Colegiado"
+        />
+        <GraficoBarras
+          color="#2f7d4f"
+          data={derived.charts.integrantesPorVinculo}
+          title="Quantidade de Integrantes por Tipo de Vinculo"
+        />
+        <GraficoBarras
+          color="#12567a"
+          data={derived.charts.integrantesPorPapel}
+          title="Quantidade de Integrantes por Papel"
+        />
+        <GraficoBarras
+          color="#315f97"
+          data={derived.charts.reunioesPorStatus}
+          title="Resumo de Reunioes por Status"
+        />
       </section>
     </div>
   );

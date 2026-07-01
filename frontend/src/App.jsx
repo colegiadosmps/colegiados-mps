@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
+import StatusBasePanel from "./components/StatusBasePanel";
 import Dashboard from "./pages/Dashboard";
 import CalendarioReunioes from "./pages/CalendarioReunioes";
 import ColegiadosExternos from "./pages/ColegiadosExternos";
@@ -10,17 +11,20 @@ import ConsultaColegiado from "./pages/ConsultaColegiado";
 import HistoricoReunioes from "./pages/HistoricoReunioes";
 import Integrantes from "./pages/Integrantes";
 import Publicacoes from "./pages/Publicacoes";
-import StatusBase from "./pages/StatusBase";
 
 const App = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   return (
     <BrowserRouter>
       <div className="app-shell">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
         <div className="app-main">
-          <Header onToggleMenu={() => setMenuOpen((current) => !current)} />
+          <Header
+            onOpenStatus={() => setStatusOpen(true)}
+            onToggleMenu={() => setMenuOpen((current) => !current)}
+          />
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -31,10 +35,10 @@ const App = () => {
               <Route path="/calendario-reunioes" element={<CalendarioReunioes />} />
               <Route path="/historico-reunioes" element={<HistoricoReunioes />} />
               <Route path="/publicacoes" element={<Publicacoes />} />
-              <Route path="/status-base" element={<StatusBase />} />
             </Routes>
           </main>
         </div>
+        <StatusBasePanel onClose={() => setStatusOpen(false)} open={statusOpen} />
       </div>
     </BrowserRouter>
   );

@@ -1,58 +1,100 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
-import ClearFiltersButton from "../components/ClearFiltersButton";
-import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
-import TabelaMembros from "../components/TabelaMembros";
 import { api } from "../services/api";
-import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const reunioesColumns = [
   { key: "id_reuniao", label: "Reuniao", width: "160px", render: (row) => row.id_reuniao || "-" },
   { key: "data_reuniao", label: "Data", width: "120px" },
-  { key: "status_reuniao", label: "Status", width: "180px" },
+  { key: "status_reuniao", label: "Status", width: "140px" },
 ];
+
+const membrosColumns = [
+  { key: "nome_membro", label: "Nome", width: "220px" },
+  { key: "papel", label: "Papel", width: "160px" },
+  { key: "detalhamento_papel", label: "Detalhamento do Papel", width: "260px", className: "cell-wrap" },
+  { key: "tipo_vinculo", label: "Vinculo", width: "140px" },
+  { key: "sigla_colegiado_pai", label: "Unidade", width: "140px" },
+];
+
+const calendarioColumns = [
+  { key: "id_reuniao", label: "Reuniao", width: "160px", render: (row) => row.id_reuniao || "-" },
+  { key: "local", label: "Local", width: "180px", className: "cell-wrap" },
+  { key: "data_reuniao", label: "Data", width: "120px" },
+  { key: "hora", label: "Horario", width: "100px" },
+  { key: "status_reuniao", label: "Status", width: "140px" },
+];
+
+const publicacoesColumns = [
+  { key: "nome_pasta", label: "Arquivo/Pasta", width: "220px" },
+  {
+    key: "link_pasta",
+    label: "URL_OU_CAMINHO",
+    width: "340px",
+    className: "cell-url cell-wrap",
+    render: (row) =>
+      row.link_pasta ? (
+        <a href={row.link_pasta} rel="noreferrer" target="_blank">
+          {row.link_pasta}
+        </a>
+      ) : (
+        "-"
+      ),
+  },
+];
+
+const summaryRows = (colegiado) => [
+  ["Nome", colegiado.nome || "Nao informado"],
+  ["Sigla", colegiado.sigla || "Nao informado"],
+  ["Tipo", colegiado.tipo || "Nao informado"],
+  ["Colegiado Pai", colegiado.sigla_colegiado_pai || "Nao informado"],
+  ["Unidade", colegiado.unidade || "Nao informado"],
+  ["Sigla Unidade Pai", colegiado.sigla_unidade_pai || "Nao informado"],
+  ["Ato de Criacao", colegiado.ato_criacao || "Nao informado"],
+  ["Data de Instituicao", colegiado.data_instituicao || "Nao informado"],
+  ["Data de Termino", colegiado.data_termino || "Nao informado"],
+  ["Quantidade minima de reunioes anuais", colegiado.qtd_min_reunioes_anuais || "Nao informado"],
+  ["Regra de Quorum", colegiado.regra_quorum || "Nao informado"],
+  ["Status", colegiado.ativo || "Nao informado"],
+  ["Observacoes", colegiado.observacoes || "Nao informado"],
+];
+
+const ModalSection = ({ children, onClose, title }) => (
+  <>
+    <button className="status-panel-backdrop" onClick={onClose} type="button" />
+    <section className="app-modal">
+      <div className="app-modal__header">
+        <h3>{title}</h3>
+        <button className="text-button" onClick={onClose} type="button">
+          Fechar
+        </button>
+      </div>
+      <div className="app-modal__body">{children}</div>
+    </section>
+  </>
+);
 
 const ConsultaColegiado = () => {
   const { sigla } = useParams();
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [colegiado, setColegiado] = useState(null);
-  const [colegiados, setColegiados] = useState([]);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({
-    tipo: normalizeFilterValue(searchParams.get("tipo")),
-    sigla: normalizeFilterValue(searchParams.get("sigla")) || sigla,
-  });
+  const [activeModal, setActiveModal] = useState("");
 
   useEffect(() => {
-    Promise.all([api.get(`/api/colegiados/${sigla}`), api.get("/api/colegiados")])
-      .then(([colegiadoResult, colegiadosResult]) => {
-        setColegiado(colegiadoResult);
-        setColegiados(colegiadosResult);
-      })
-      .catch((err) => setError(err.message));
+    api
+      .get(`/api/colegiados/${sigla}`)
+      .then(setColegiado)
+      .catch((requestError) => setError(requestError.message));
   }, [sigla]);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (filters.tipo !== ALL_VALUE) {
-      params.set("tipo", filters.tipo);
-    }
-    if (filters.sigla !== ALL_VALUE) {
-      params.set("sigla", filters.sigla);
-    }
-    setSearchParams(params, { replace: true });
-  }, [filters, setSearchParams]);
-
-  const filteredMembros = useMemo(() => {
+  const summary = useMemo(() => {
     if (!colegiado) {
       return [];
     }
-    return colegiado.membros;
+    return summaryRows(colegiado);
   }, [colegiado]);
 
   if (error) {
@@ -66,71 +108,102 @@ const ConsultaColegiado = () => {
   return (
     <div className="page-content">
       <PageHeader
-        filters={
-          <>
-            <FilterDropdown
-              label="Tipo de Colegiado"
-              options={buildOptions(colegiados.map((item) => item.tipo))}
-              value={filters.tipo}
-              onChange={(value) => setFilters((current) => ({ ...current, tipo: value }))}
-            />
-            <FilterDropdown
-              label="Sigla Colegiado"
-              options={buildOptions(colegiados.map((item) => item.sigla))}
-              value={filters.sigla}
-              onChange={(value) => {
-                setFilters((current) => ({ ...current, sigla: value }));
-                if (value !== ALL_VALUE && value !== colegiado.sigla) {
-                  navigate(`/colegiados/${value}`);
-                }
-              }}
-            />
-            <ClearFiltersButton
-              onClick={() =>
-                setFilters({ tipo: ALL_VALUE, sigla: normalizeFilterValue(colegiado.sigla) })
-              }
-            />
-          </>
-        }
+        filters={null}
         icon={HiOutlineClipboardDocumentList}
-        metricLabel="Integrantes do colegiado"
-        metricValue={colegiado.total_membros}
-        subtitle="Detalhes de competencias, ato de criacao, reunioes e membros do colegiado selecionado."
+        metricLabel="Sigla"
+        metricValue={colegiado.sigla}
+        subtitle="Detalhamento estrutural do colegiado selecionado, com modais para membros, reunioes, calendario e publicacoes."
         title={colegiado.nome}
       />
 
+      <section className="detail-grid detail-grid--summary">
+        {summary.map(([label, value]) => (
+          <article className="detail-panel" key={label}>
+            <h3>{label}</h3>
+            <div className="detail-value">{value || "Nao informado"}</div>
+          </article>
+        ))}
+      </section>
+
       <section className="detail-grid">
-        <article className="detail-panel">
+        <article className="detail-panel detail-panel--wide">
           <h3>Competencias</h3>
           <div className="detail-value">
-            {colegiado.competencia || colegiado.descricao || "Sem competencias cadastradas."}
+            {colegiado.competencia || colegiado.descricao || "Nao informado"}
           </div>
         </article>
-        <article className="detail-panel">
-          <h3>Ato de Criacao</h3>
-          <div className="detail-value">Informacao ainda nao sincronizada na base atual.</div>
-        </article>
-        <article className="detail-panel">
-          <h3>Reunioes</h3>
-          <PowerBiTable
-            columns={reunioesColumns}
-            emptyMessage="Nenhuma reuniao vinculada a este colegiado."
-            rows={colegiado.reunioes}
-          />
+        <article className="detail-panel detail-panel--wide">
+          <h3>Resumo Legal</h3>
+          <div className="status-panel__list">
+            <p><strong>Ato de Criacao:</strong> {colegiado.ato_criacao || "Nao informado"}</p>
+            <p><strong>Data de Instituicao:</strong> {colegiado.data_instituicao || "Nao informado"}</p>
+            <p><strong>Data de Termino:</strong> {colegiado.data_termino || "Nao informado"}</p>
+            <p><strong>Quantidade minima de reunioes anuais:</strong> {colegiado.qtd_min_reunioes_anuais || "Nao informado"}</p>
+            <p><strong>Regra de Quorum:</strong> {colegiado.regra_quorum || "Nao informado"}</p>
+            <p><strong>Status:</strong> {colegiado.ativo || "Nao informado"}</p>
+            <p><strong>Observacoes:</strong> {colegiado.observacoes || "Nao informado"}</p>
+          </div>
         </article>
       </section>
 
-      <section className="content-card">
-        <div className="section-heading">
-          <h3>Membros</h3>
-          <div className="form-actions">
-            <Link className="text-link" to={`/integrantes?colegiado=${colegiado.sigla}`}>
-              Abrir em Integrantes
-            </Link>
-          </div>
-        </div>
-        <TabelaMembros membros={filteredMembros} />
+      <section className="cards-list">
+        <button className="action-tile" onClick={() => setActiveModal("reunioes")} type="button">
+          <strong>Reunioes</strong>
+          <span>Visualizar reunioes vinculadas a {colegiado.sigla}.</span>
+        </button>
+        <button className="action-tile" onClick={() => setActiveModal("membros")} type="button">
+          <strong>Membros</strong>
+          <span>Listar apenas integrantes vinculados a este colegiado.</span>
+        </button>
+        <button className="action-tile" onClick={() => setActiveModal("calendario")} type="button">
+          <strong>Calendario de Reunioes</strong>
+          <span>Consultar local, data, horario e status das reunioes.</span>
+        </button>
+        <button className="action-tile" onClick={() => setActiveModal("publicacoes")} type="button">
+          <strong>Publicacoes</strong>
+          <span>Listar arquivos e pastas de publicacoes do colegiado.</span>
+        </button>
       </section>
+
+      {activeModal === "reunioes" ? (
+        <ModalSection onClose={() => setActiveModal("")} title={`Reunioes de ${colegiado.sigla}`}>
+          <PowerBiTable
+            columns={reunioesColumns}
+            emptyMessage="Nenhuma reuniao encontrada para este colegiado."
+            rows={colegiado.reunioes || []}
+          />
+        </ModalSection>
+      ) : null}
+
+      {activeModal === "membros" ? (
+        <ModalSection onClose={() => setActiveModal("")} title={`Membros de ${colegiado.sigla}`}>
+          <PowerBiTable
+            columns={membrosColumns}
+            emptyMessage="Nenhum membro encontrado para este colegiado."
+            rows={colegiado.membros || []}
+          />
+        </ModalSection>
+      ) : null}
+
+      {activeModal === "calendario" ? (
+        <ModalSection onClose={() => setActiveModal("")} title={`Calendario de Reunioes de ${colegiado.sigla}`}>
+          <PowerBiTable
+            columns={calendarioColumns}
+            emptyMessage="Nenhuma reuniao encontrada para este colegiado."
+            rows={colegiado.reunioes || []}
+          />
+        </ModalSection>
+      ) : null}
+
+      {activeModal === "publicacoes" ? (
+        <ModalSection onClose={() => setActiveModal("")} title={`Publicacoes de ${colegiado.sigla}`}>
+          <PowerBiTable
+            columns={publicacoesColumns}
+            emptyMessage="Nenhuma publicacao encontrada para este colegiado."
+            rows={colegiado.publicacoes || []}
+          />
+        </ModalSection>
+      ) : null}
     </div>
   );
 };

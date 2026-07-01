@@ -122,6 +122,10 @@ label {
   min-width: 82px;
 }
 
+.dashboard-card-link {
+  display: block;
+}
+
 .danger-text {
   color: var(--danger);
 }

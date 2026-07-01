@@ -1,45 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
-import PowerBiTable from "../components/PowerBiTable";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
-const columns = [
-  { key: "sigla", label: "Colegiado Pai", width: "140px" },
-  { key: "tipo", label: "Tipo", width: "120px" },
-  {
-    key: "competencia",
-    label: "Competencias",
-    width: "320px",
-    className: "cell-wrap",
-    render: (row) => row.competencia || row.descricao || "-",
-  },
-  { key: "quorum", label: "Quorum", width: "110px", render: () => "-" },
-  { key: "ato", label: "Ato de Criacao", width: "150px", render: () => "-" },
-  { key: "total_reunioes", label: "Reunioes", width: "110px" },
-  { key: "total_membros", label: "Membros", width: "110px" },
-  {
-    key: "consulta",
-    label: "Consulta",
-    width: "110px",
-    render: (row) => (
-      <Link className="text-link" to={`/colegiados/${row.sigla}`}>
-        Abrir
-      </Link>
-    ),
-  },
-];
+const typeOrder = ["Camara", "Comite", "Conselho", "Grupo de Trabalho", "Subcomite"];
+
+const sortTypes = (entries) =>
+  [...entries].sort(([left], [right]) => {
+    const leftIndex = typeOrder.indexOf(left);
+    const rightIndex = typeOrder.indexOf(right);
+    if (leftIndex === -1 && rightIndex === -1) {
+      return left.localeCompare(right);
+    }
+    if (leftIndex === -1) {
+      return 1;
+    }
+    if (rightIndex === -1) {
+      return -1;
+    }
+    return leftIndex - rightIndex;
+  });
 
 const ColegiadosInternos = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [colegiados, setColegiados] = useState(null);
   const [filters, setFilters] = useState({
-    colegiado: normalizeFilterValue(searchParams.get("colegiado")),
     tipo: normalizeFilterValue(searchParams.get("tipo")),
     sigla: normalizeFilterValue(searchParams.get("sigla")),
   });
@@ -50,9 +41,6 @@ const ColegiadosInternos = () => {
 
   useEffect(() => {
     const params = new URLSearchParams();
-    if (filters.colegiado !== ALL_VALUE) {
-      params.set("colegiado", filters.colegiado);
-    }
     if (filters.tipo !== ALL_VALUE) {
       params.set("tipo", filters.tipo);
     }
@@ -68,16 +56,31 @@ const ColegiadosInternos = () => {
     }
 
     return colegiados.filter((item) => {
-      const matchesColegiado =
-        filters.colegiado === ALL_VALUE || item.nome === filters.colegiado;
       const matchesTipo = filters.tipo === ALL_VALUE || item.tipo === filters.tipo;
       const matchesSigla = filters.sigla === ALL_VALUE || item.sigla === filters.sigla;
-      return matchesColegiado && matchesTipo && matchesSigla;
+      return matchesTipo && matchesSigla;
     });
   }, [colegiados, filters]);
 
+  const grouped = useMemo(() => {
+    const groups = new Map();
+
+    filteredColegiados.forEach((item) => {
+      const groupKey = item.tipo || "Nao informado";
+      const current = groups.get(groupKey) || [];
+      current.push(item);
+      groups.set(groupKey, current);
+    });
+
+    return sortTypes(Array.from(groups.entries()));
+  }, [filteredColegiados]);
+
   if (!colegiados) {
     return <Loading label="Carregando colegiados internos..." />;
+  }
+
+  if (!colegiados.length) {
+    return <div className="empty-state">Base de colegiados internos nao encontrada.</div>;
   }
 
   return (
@@ -85,12 +88,6 @@ const ColegiadosInternos = () => {
       <PageHeader
         filters={
           <>
-            <FilterDropdown
-              label="Colegiado"
-              options={buildOptions(colegiados.map((item) => item.nome))}
-              value={filters.colegiado}
-              onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
-            />
             <FilterDropdown
               label="Tipo de Colegiado"
               options={buildOptions(colegiados.map((item) => item.tipo))}
@@ -104,29 +101,52 @@ const ColegiadosInternos = () => {
               onChange={(value) => setFilters((current) => ({ ...current, sigla: value }))}
             />
             <ClearFiltersButton
-              onClick={() =>
-                setFilters({ colegiado: ALL_VALUE, tipo: ALL_VALUE, sigla: ALL_VALUE })
-              }
+              onClick={() => setFilters({ tipo: ALL_VALUE, sigla: ALL_VALUE })}
             />
           </>
         }
         icon={HiOutlineClipboardDocumentList}
         metricLabel="Colegiados internos"
         metricValue={filteredColegiados.length}
-        subtitle="Tabela ampla com colegiado pai, competencias, reunioes e membros."
+        subtitle="Base organizada por tipo de colegiado, com acesso rapido aos detalhes de cada estrutura."
         title="Colegiados Internos"
       />
 
-      <section className="content-card">
-        <div className="section-heading">
-          <h3>Consulta principal</h3>
-          <p>Quando voce seleciona um colegiado, a consulta detalhada fica disponivel pelo link da ultima coluna.</p>
-        </div>
-        <PowerBiTable
-          columns={columns}
-          emptyMessage="Nenhum colegiado interno encontrado para os filtros selecionados."
-          rows={filteredColegiados}
-        />
+      <section className="type-groups">
+        {grouped.map(([tipo, items]) => (
+          <article className="type-card" key={tipo}>
+            <div className="type-card__header">
+              <div>
+                <p className="eyebrow">Tipo de colegiado</p>
+                <h3>{tipo}</h3>
+              </div>
+              <span className="pill">{items.length} colegiado(s)</span>
+            </div>
+
+            <div className="colegiado-grid">
+              {items.map((item) => (
+                <button
+                  className="colegiado-tile"
+                  key={item.sigla}
+                  onClick={() => navigate(`/colegiados/${item.sigla}`)}
+                  type="button"
+                >
+                  <div className="colegiado-tile__header">
+                    <span className="pill">{item.sigla}</span>
+                    <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
+                      {item.ativo || "Nao informado"}
+                    </span>
+                  </div>
+                  <h4>{item.nome}</h4>
+                  <div className="colegiado-tile__stats">
+                    <span>{item.total_membros || 0} membros</span>
+                    <span>{item.total_reunioes || 0} reunioes</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
       </section>
     </div>
   );

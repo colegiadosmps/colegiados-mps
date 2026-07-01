@@ -1,10 +1,6 @@
 import {
   HiOutlineBriefcase,
-  HiOutlineCalendarDays,
-  HiOutlineChartBarSquare,
-  HiOutlineCircleStack,
   HiOutlineClipboardDocumentList,
-  HiOutlineDocumentText,
   HiOutlineHome,
   HiOutlineUsers,
 } from "react-icons/hi2";
@@ -23,18 +19,6 @@ const items = [
     icon: HiOutlineBriefcase,
   },
   { to: "/integrantes", label: "Integrantes", icon: HiOutlineUsers },
-  {
-    to: "/calendario-reunioes",
-    label: "Calendario de Reunioes",
-    icon: HiOutlineCalendarDays,
-  },
-  {
-    to: "/historico-reunioes",
-    label: "Historico de Reunioes",
-    icon: HiOutlineDocumentText,
-  },
-  { to: "/publicacoes", label: "Publicacoes", icon: HiOutlineChartBarSquare },
-  { to: "/status-base", label: "Status da Base", icon: HiOutlineCircleStack },
 ];
 
 const Sidebar = ({ open, onClose }) => (

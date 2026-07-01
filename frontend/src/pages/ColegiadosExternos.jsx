@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { HiOutlineBriefcase } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterDropdown from "../components/FilterDropdown";
@@ -12,12 +12,7 @@ import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filte
 
 const columns = [
   { key: "nome", label: "Colegiado", width: "240px" },
-  {
-    key: "orgao",
-    label: "Orgao",
-    width: "200px",
-    render: (row) => row.sigla_colegiado_pai || row.sigla || "-",
-  },
+  { key: "orgao", label: "Orgao", width: "200px", render: (row) => row.orgao || row.sigla || "-" },
   { key: "dispositivo", label: "Dispositivo Legal", width: "180px", render: () => "-" },
   {
     key: "descricao",
@@ -25,16 +20,6 @@ const columns = [
     width: "340px",
     className: "cell-wrap",
     render: (row) => row.competencia || row.descricao || "-",
-  },
-  {
-    key: "consulta",
-    label: "Consulta",
-    width: "110px",
-    render: (row) => (
-      <Link className="text-link" to={`/colegiados/${row.sigla}`}>
-        Abrir
-      </Link>
-    ),
   },
 ];
 
@@ -67,7 +52,7 @@ const ColegiadosExternos = () => {
     }
 
     return colegiados.filter((item) => {
-      const orgao = item.sigla || "Nao informado";
+      const orgao = item.orgao || item.sigla || "Nao informado";
       const matchesColegiado =
         filters.colegiado === ALL_VALUE || item.nome === filters.colegiado;
       const matchesOrgao = filters.orgao === ALL_VALUE || orgao === filters.orgao;
@@ -86,6 +71,10 @@ const ColegiadosExternos = () => {
 
   if (!colegiados) {
     return <Loading label="Carregando colegiados externos..." />;
+  }
+
+  if (!colegiados.length) {
+    return <div className="empty-state">Base de colegiados externos nao encontrada.</div>;
   }
 
   return (

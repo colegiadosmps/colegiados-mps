@@ -133,10 +133,6 @@ const Integrantes = () => {
 
       <section className="charts-grid">
         <GraficoBarras
-          data={aggregateBy(filteredMembros, "sigla_colegiado")}
-          title="Membros por Colegiado"
-        />
-        <GraficoBarras
           data={aggregateBy(filteredMembros, "tipo_vinculo")}
           title="Tipo de Vinculo"
           color="#12689a"
@@ -145,11 +141,6 @@ const Integrantes = () => {
           data={aggregateBy(filteredMembros, "papel")}
           title="Papel"
           color="#0b5f8f"
-        />
-        <GraficoBarras
-          data={aggregateBy(filteredMembros, "ativo")}
-          title="Ativos x Inativos"
-          color="#2f7d4f"
         />
       </section>
     </div>
