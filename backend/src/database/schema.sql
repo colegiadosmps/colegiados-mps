@@ -3,6 +3,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS colegiados (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   sigla TEXT NOT NULL UNIQUE,
+  sigla_exibicao TEXT,
+  chave_pasta TEXT,
   nome TEXT NOT NULL,
   categoria TEXT,
   tipo TEXT,

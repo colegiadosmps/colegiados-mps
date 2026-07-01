@@ -4,21 +4,13 @@ import { parseFileName } from "./fileNameService.js";
 import {
   normalizeBooleanStatus,
   normalizeDate,
+  normalizeKey,
   normalizeText,
 } from "../utils/formatters.js";
 
-const normalizeIdentifier = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^A-Za-z0-9]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .toUpperCase();
-
 const normalizeRecord = (record) =>
   Object.fromEntries(
-    Object.entries(record).map(([key, value]) => [normalizeIdentifier(key), value]),
+    Object.entries(record).map(([key, value]) => [normalizeKey(key), value]),
   );
 
 const getFieldValue = (record, aliases) => {
@@ -68,10 +60,23 @@ const registerImport = async ({
 
 const ensureColegiado = async (siglaColegiado) => {
   await run(
-    `INSERT INTO colegiados (sigla, nome, categoria, tipo, descricao, ativo, updated_at)
-     VALUES (?, ?, 'Interno', ?, ?, 'Sim', datetime('now'))
-     ON CONFLICT(sigla) DO UPDATE SET updated_at = datetime('now')`,
+    `INSERT INTO colegiados (
+      sigla,
+      sigla_exibicao,
+      chave_pasta,
+      nome,
+      categoria,
+      tipo,
+      descricao,
+      ativo,
+      updated_at
+    ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, 'Sim', datetime('now'))
+     ON CONFLICT(sigla) DO UPDATE SET
+       chave_pasta = excluded.chave_pasta,
+       updated_at = datetime('now')`,
     [
+      siglaColegiado,
+      siglaColegiado,
       siglaColegiado,
       siglaColegiado,
       "Nao informado",
@@ -181,13 +186,18 @@ const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
 
   for (const record of records) {
     const sigla =
-      getFieldValue(record, ["SIGLA", "SIGLA_COLEGIADO"]) || "NAO_INFORMADO";
+      getFieldValue(record, ["SIGLA", "SIGLA_COLEGIADO", "SIGLA_DO_COLEGIADO"]) ||
+      "NAO_INFORMADO";
     const nome =
       getFieldValue(record, ["COLEGIADO", "NOME", "NOME_COLEGIADO"]) || sigla;
+    const siglaExibicao = normalizeText(sigla) || "Nao informado";
+    const chavePasta = normalizeKey(siglaExibicao);
 
     await run(
       `INSERT INTO colegiados (
         sigla,
+        sigla_exibicao,
+        chave_pasta,
         nome,
         categoria,
         tipo,
@@ -204,14 +214,16 @@ const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
         observacoes,
         ativo,
         updated_at
-      ) VALUES (?, ?, 'Interno', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [
-        normalizeIdentifier(sigla),
+        normalizeKey(siglaExibicao),
+        siglaExibicao,
+        chavePasta,
         nome,
-        getFieldValue(record, ["TIPO", "TIPO_COLEGIADO"]) || "Nao informado",
+        getFieldValue(record, ["TIPO", "TIPO_COLEGIADO", "TIPO_DE_COLEGIADO"]) || "Nao informado",
         getFieldValue(record, ["DESCRICAO", "FINALIDADE"]) || null,
         getFieldValue(record, ["COMPETENCIAS", "COMPETENCIA"]) || null,
-        getFieldValue(record, ["COLEGIADO_PAI", "SIGLA_COLEGIADO_PAI"]) || null,
+        getFieldValue(record, ["SIGLA_COLEGIADO_PAI", "COLEGIADO_PAI"]) || null,
         getFieldValue(record, ["UNIDADE"]) || null,
         getFieldValue(record, ["SIGLA_UNIDADE_PAI"]) || null,
         getFieldValue(record, ["ATO_DE_CRIACAO", "ATO_CRIACAO"]) || null,
@@ -254,7 +266,7 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
     const nome =
       getFieldValue(record, ["COLEGIADO", "NOME", "NOME_COLEGIADO"]) || "Nao informado";
     const orgao = getFieldValue(record, ["ORGAO"]) || "Nao informado";
-    const baseSigla = normalizeIdentifier(
+    const baseSigla = normalizeKey(
       getFieldValue(record, ["SIGLA"]) || `EXT_${nome}_${orgao}`,
     );
 
@@ -269,6 +281,8 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
     await run(
       `INSERT INTO colegiados (
         sigla,
+        sigla_exibicao,
+        chave_pasta,
         nome,
         categoria,
         tipo,
@@ -277,9 +291,11 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
         dispositivo_legal,
         ativo,
         updated_at
-      ) VALUES (?, ?, 'Externo', 'Externo', ?, ?, ?, 'Sim', datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, 'Externo', 'Externo', ?, ?, ?, 'Sim', datetime('now'))`,
       [
         sigla,
+        getFieldValue(record, ["SIGLA"]) || nome,
+        normalizeKey(getFieldValue(record, ["SIGLA"]) || nome),
         nome,
         getFieldValue(record, [
           "NATUREZA_COMPETENCIA_OU_FINALIDADE",

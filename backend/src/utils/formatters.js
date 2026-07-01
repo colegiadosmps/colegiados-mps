@@ -7,6 +7,16 @@ export const normalizeText = (value) => {
   return cleaned === "" ? null : cleaned;
 };
 
+export const normalizeKey = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^A-Za-z0-9_]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+
 export const normalizeDate = (value) => {
   const cleaned = normalizeText(value);
 
@@ -48,6 +58,20 @@ export const normalizeBooleanStatus = (value) => {
   }
 
   return cleaned;
+};
+
+export const toDisplayStatus = (value) => {
+  const normalized = normalizeBooleanStatus(value);
+
+  if (normalized === "Sim") {
+    return "Ativo";
+  }
+
+  if (normalized === "Nao") {
+    return "Inativo";
+  }
+
+  return "Nao informado";
 };
 
 export const formatDateTime = (value) => {

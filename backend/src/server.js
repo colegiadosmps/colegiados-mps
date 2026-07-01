@@ -74,6 +74,8 @@ const ensureColumn = async (tableName, columnName, definition) => {
 };
 
 const ensureSchemaCompatibility = async () => {
+  await ensureColumn("colegiados", "sigla_exibicao", "TEXT");
+  await ensureColumn("colegiados", "chave_pasta", "TEXT");
   await ensureColumn("colegiados", "categoria", "TEXT");
   await ensureColumn("colegiados", "competencia", "TEXT");
   await ensureColumn("colegiados", "sigla_colegiado_pai", "TEXT");

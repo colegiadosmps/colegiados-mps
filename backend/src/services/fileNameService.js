@@ -1,5 +1,7 @@
+import { normalizeKey } from "../utils/formatters.js";
+
 const filePattern =
-  /^(?<sigla>[A-Za-z0-9_]+)_(?<tipo>Membros|Reunioes|Reuniao)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})\.csv$/i;
+  /^(?<sigla>.+?)_(?<tipo>Membros|Reunioes|Reuniao|Reuniões|Reunião)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})\.csv$/i;
 
 const normalizeFileType = (value) => {
   const normalized = value.toLowerCase();
@@ -23,7 +25,7 @@ export const parseFileName = (fileName) => {
   const { sigla, tipo, day, month, year } = match.groups;
 
   return {
-    siglaColegiado: sigla.toUpperCase(),
+    siglaColegiado: normalizeKey(sigla),
     tipo: normalizeFileType(tipo),
     dataBase: `${year}-${month}-${day}`,
   };
