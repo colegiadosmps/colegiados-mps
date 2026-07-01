@@ -9,11 +9,12 @@ const Header = ({ onOpenStatus, onToggleMenu }) => (
     <div className="topbar-actions">
       <button
         aria-label="Abrir status da base"
-        className="icon-button"
+        className="status-button"
         onClick={onOpenStatus}
         type="button"
       >
         <HiOutlineCog6Tooth />
+        <span>Status da Base</span>
       </button>
       <button className="menu-button" onClick={onToggleMenu} type="button">
         Menu

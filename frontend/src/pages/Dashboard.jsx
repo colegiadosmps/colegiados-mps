@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { HiOutlineHome } from "react-icons/hi2";
+import {
+  HiOutlineBuildingLibrary,
+  HiOutlineCalendarDays,
+  HiOutlineCheckCircle,
+  HiOutlineHome,
+  HiOutlineUserGroup,
+  HiOutlineUsers,
+  HiOutlineUser,
+} from "react-icons/hi2";
 import CardResumo from "../components/CardResumo";
+import DonutChartCard from "../components/DonutChartCard";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
@@ -91,54 +100,103 @@ const Dashboard = () => {
       <PageHeader
         filters={null}
         icon={HiOutlineHome}
-        subtitle="Visao geral dos colegiados, integrantes e reunioes carregados no sistema."
+        subtitle="Visao geral dos colegiados, integrantes e reunioes com dados atualizados e indicadores estrategicos."
         title="Dashboard"
       />
 
-      <section className="metric-grid">
+      <section className="metric-grid metric-grid--dashboard">
         <Link className="dashboard-card-link" to="/colegiados/internos">
-          <CardResumo titulo="Total de Colegiados Internos" valor={derived.totalInternos} />
+          <CardResumo
+            caption="Painel interno"
+            icone={HiOutlineBuildingLibrary}
+            titulo="Colegiados Internos"
+            tone="blue"
+            valor={derived.totalInternos}
+          />
         </Link>
         <Link className="dashboard-card-link" to="/colegiados/externos">
-          <CardResumo titulo="Total de Colegiados Externos" valor={derived.totalExternos} />
+          <CardResumo
+            caption="Vinculos externos"
+            icone={HiOutlineBuildingLibrary}
+            titulo="Colegiados Externos"
+            tone="green"
+            valor={derived.totalExternos}
+          />
         </Link>
         <Link className="dashboard-card-link" to="/integrantes">
-          <CardResumo titulo="Total de Integrantes" valor={derived.totalIntegrantes} />
+          <CardResumo
+            caption="Base de membros"
+            icone={HiOutlineUsers}
+            titulo="Integrantes"
+            tone="purple"
+            valor={derived.totalIntegrantes}
+          />
         </Link>
-        <CardResumo titulo="Total de Reunioes" valor={derived.totalReunioes} />
-        <CardResumo titulo="Reunioes Planejadas" valor={derived.totalPlanejadas} />
-        <CardResumo titulo="Reunioes Realizadas" valor={derived.totalRealizadas} />
-        <CardResumo titulo="Total de Titulares" valor={derived.totalTitulares} />
-        <CardResumo titulo="Total de Suplentes" valor={derived.totalSuplentes} />
+        <CardResumo
+          caption="Agenda geral"
+          icone={HiOutlineCalendarDays}
+          titulo="Reunioes"
+          tone="amber"
+          valor={derived.totalReunioes}
+        />
+        <CardResumo
+          caption="Status previsto"
+          icone={HiOutlineCalendarDays}
+          titulo="Reunioes Planejadas"
+          tone="sky"
+          valor={derived.totalPlanejadas}
+        />
+        <CardResumo
+          caption="Status concluido"
+          icone={HiOutlineCheckCircle}
+          titulo="Reunioes Realizadas"
+          tone="green"
+          valor={derived.totalRealizadas}
+        />
+        <CardResumo
+          caption="Vinculo principal"
+          icone={HiOutlineUser}
+          titulo="Titulares"
+          tone="sky"
+          valor={derived.totalTitulares}
+        />
+        <CardResumo
+          caption="Vinculo de apoio"
+          icone={HiOutlineUserGroup}
+          titulo="Suplentes"
+          tone="purple"
+          valor={derived.totalSuplentes}
+        />
       </section>
 
       <section className="charts-grid">
         <GraficoBarras
+          color="#2b74ff"
           data={derived.charts.internosPorTipo}
           title="Distribuicao de Colegiados Internos por Tipo"
         />
         <GraficoBarras
-          color="#12689a"
+          color="#37b45b"
           data={derived.charts.externosPorOrgao}
           title="Quantidade de Colegiados Externos por Orgao"
         />
         <GraficoBarras
-          color="#0b5f8f"
+          color="#2b74ff"
           data={derived.charts.integrantesPorColegiado}
           title="Quantidade de Integrantes por Colegiado"
         />
-        <GraficoBarras
-          color="#2f7d4f"
+        <DonutChartCard
+          colors={["#56c46b", "#5d9cff", "#d5dfeb"]}
           data={derived.charts.integrantesPorVinculo}
           title="Quantidade de Integrantes por Tipo de Vinculo"
         />
         <GraficoBarras
-          color="#12567a"
+          color="#7a45e6"
           data={derived.charts.integrantesPorPapel}
           title="Quantidade de Integrantes por Papel"
         />
-        <GraficoBarras
-          color="#315f97"
+        <DonutChartCard
+          colors={["#2b74ff", "#37b45b", "#e14747", "#c6d0dc"]}
           data={derived.charts.reunioesPorStatus}
           title="Resumo de Reunioes por Status"
         />

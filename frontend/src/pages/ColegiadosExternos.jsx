@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlineBriefcase } from "react-icons/hi2";
+import { HiOutlineBriefcase, HiOutlineBuildingLibrary } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterDropdown from "../components/FilterDropdown";
+import MetricCard from "../components/MetricCard";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
@@ -63,7 +64,7 @@ const ColegiadosExternos = () => {
   const chartData = useMemo(() => {
     const counts = new Map();
     filteredColegiados.forEach((item) => {
-      const label = item.sigla || "Nao informado";
+      const label = item.orgao || item.sigla || "Nao informado";
       counts.set(label, (counts.get(label) || 0) + 1);
     });
     return Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
@@ -90,7 +91,7 @@ const ColegiadosExternos = () => {
             />
             <FilterDropdown
               label="Orgao"
-              options={buildOptions(colegiados.map((item) => item.sigla))}
+              options={buildOptions(colegiados.map((item) => item.orgao || item.sigla))}
               value={filters.orgao}
               onChange={(value) => setFilters((current) => ({ ...current, orgao: value }))}
             />
@@ -100,17 +101,22 @@ const ColegiadosExternos = () => {
           </>
         }
         icon={HiOutlineBriefcase}
-        metricLabel="Colegiados externos"
-        metricValue={filteredColegiados.length}
-        subtitle="Grafico e tabela atualizam juntos conforme o filtro de orgao ou colegiado."
+        subtitle="Consulte os colegiados externos aos quais o MPS esta vinculado."
         title="Colegiados Externos"
       />
 
-      <section className="charts-grid single-chart">
+      <section className="content-card externos-summary">
+        <MetricCard
+          caption="Colegiados externos"
+          icon={HiOutlineBuildingLibrary}
+          label="Colegiados externos"
+          tone="blue"
+          value={filteredColegiados.length}
+        />
         <GraficoBarras
+          color="#2b74ff"
           data={chartData}
-          title="Colegiados Externos por Orgao"
-          color="#12689a"
+          title="Colegiados externos por orgao"
         />
       </section>
 

@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
+import {
+  HiOutlineCalendarDays,
+  HiOutlineClipboardDocumentList,
+  HiOutlineDocumentText,
+  HiOutlineFolderOpen,
+  HiOutlineUsers,
+} from "react-icons/hi2";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import { formatDate } from "../services/formatters";
 import { api } from "../services/api";
 
 const reunioesColumns = [
@@ -62,6 +69,14 @@ const summaryRows = (colegiado) => [
   ["Observacoes", colegiado.observacoes || "Nao informado"],
 ];
 
+const statItems = (colegiado) => [
+  { label: "Sigla", value: colegiado.sigla || "Nao informado" },
+  { label: "Tipo", value: colegiado.tipo || "Nao informado" },
+  { label: "Status", value: colegiado.ativo || "Nao informado" },
+  { label: "Membros", value: `${colegiado.membros?.length || 0} membros` },
+  { label: "Reunioes", value: `${colegiado.reunioes?.length || 0} reunioes` },
+];
+
 const ModalSection = ({ children, onClose, title }) => (
   <>
     <button className="status-panel-backdrop" onClick={onClose} type="button" />
@@ -97,6 +112,8 @@ const ConsultaColegiado = () => {
     return summaryRows(colegiado);
   }, [colegiado]);
 
+  const stats = useMemo(() => (colegiado ? statItems(colegiado) : []), [colegiado]);
+
   if (error) {
     return <div className="empty-state">{error}</div>;
   }
@@ -110,17 +127,26 @@ const ConsultaColegiado = () => {
       <PageHeader
         filters={null}
         icon={HiOutlineClipboardDocumentList}
-        metricLabel="Sigla"
-        metricValue={colegiado.sigla}
         subtitle="Detalhamento estrutural do colegiado selecionado, com modais para membros, reunioes, calendario e publicacoes."
         title={colegiado.nome}
-      />
+      >
+        <div className="detail-hero-stats">
+          {stats.map((item) => (
+            <div className="detail-hero-stats__item" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      </PageHeader>
 
       <section className="detail-grid detail-grid--summary">
         {summary.map(([label, value]) => (
-          <article className="detail-panel" key={label}>
+          <article className="detail-panel detail-panel--info" key={label}>
             <h3>{label}</h3>
-            <div className="detail-value">{value || "Nao informado"}</div>
+            <div className="detail-value">
+              {label.includes("Data") ? formatDate(value) : value || "Nao informado"}
+            </div>
           </article>
         ))}
       </section>
@@ -148,18 +174,22 @@ const ConsultaColegiado = () => {
 
       <section className="cards-list">
         <button className="action-tile" onClick={() => setActiveModal("reunioes")} type="button">
+          <HiOutlineDocumentText />
           <strong>Reunioes</strong>
           <span>Visualizar reunioes vinculadas a {colegiado.sigla}.</span>
         </button>
         <button className="action-tile" onClick={() => setActiveModal("membros")} type="button">
+          <HiOutlineUsers />
           <strong>Membros</strong>
           <span>Listar apenas integrantes vinculados a este colegiado.</span>
         </button>
         <button className="action-tile" onClick={() => setActiveModal("calendario")} type="button">
+          <HiOutlineCalendarDays />
           <strong>Calendario de Reunioes</strong>
           <span>Consultar local, data, horario e status das reunioes.</span>
         </button>
         <button className="action-tile" onClick={() => setActiveModal("publicacoes")} type="button">
+          <HiOutlineFolderOpen />
           <strong>Publicacoes</strong>
           <span>Listar arquivos e pastas de publicacoes do colegiado.</span>
         </button>
