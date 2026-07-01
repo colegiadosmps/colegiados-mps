@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
 import { formatDateTime } from "../services/formatters";
 
+const initialCredentials = {
+  user: "",
+  password: "",
+};
+
 const buildAlerts = ({ colegiados, membros, reunioes }) => {
   const alerts = [];
 
@@ -30,46 +35,65 @@ const buildAlerts = ({ colegiados, membros, reunioes }) => {
 };
 
 const StatusBasePanel = ({ onClose, open }) => {
+  const [credentials, setCredentials] = useState(initialCredentials);
+  const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [payload, setPayload] = useState(null);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
+  const loadData = async () => {
     setLoading(true);
     setError("");
 
-    Promise.all([
-      api.get("/api/importacoes/google-drive/status"),
-      api.get("/api/sincronizacoes"),
-      api.get("/api/colegiados"),
-      api.get("/api/membros"),
-      api.get("/api/reunioes"),
-      api.get("/api/publicacoes"),
-    ])
-      .then(async ([driveStatus, sincronizacoes, colegiados, membros, reunioes, publicacoes]) => {
-        const ultimaSincronizacao = sincronizacoes[0] || null;
-        const detalheUltimaSincronizacao = ultimaSincronizacao
-          ? await api.get(`/api/sincronizacoes/${ultimaSincronizacao.id}`)
-          : null;
+    try {
+      const [
+        driveStatus,
+        sincronizacoes,
+        colegiados,
+        membros,
+        reunioes,
+        publicacoes,
+      ] = await Promise.all([
+        api.get("/api/importacoes/google-drive/status"),
+        api.get("/api/sincronizacoes"),
+        api.get("/api/colegiados"),
+        api.get("/api/membros"),
+        api.get("/api/reunioes"),
+        api.get("/api/publicacoes"),
+      ]);
 
-        setPayload({
-          driveStatus,
-          sincronizacoes,
-          ultimaSincronizacao,
-          detalheUltimaSincronizacao,
-          colegiados,
-          membros,
-          reunioes,
-          publicacoes,
-        });
-      })
-      .catch((requestError) => setError(requestError.message))
-      .finally(() => setLoading(false));
-  }, [open]);
+      const ultimaSincronizacao = sincronizacoes[0] || null;
+      const detalheUltimaSincronizacao = ultimaSincronizacao
+        ? await api.get(`/api/sincronizacoes/${ultimaSincronizacao.id}`)
+        : null;
+
+      setPayload({
+        driveStatus,
+        sincronizacoes,
+        ultimaSincronizacao,
+        detalheUltimaSincronizacao,
+        colegiados,
+        membros,
+        reunioes,
+        publicacoes,
+      });
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !token) {
+      return;
+    }
+
+    loadData();
+  }, [open, token]);
 
   const derived = useMemo(() => {
     if (!payload) {
@@ -87,12 +111,6 @@ const StatusBasePanel = ({ onClose, open }) => {
       ]),
     ).sort();
 
-    const alerts = buildAlerts({
-      colegiados: payload.colegiados,
-      membros: payload.membros,
-      reunioes: payload.reunioes,
-    });
-
     return {
       totalInternos: internos.length,
       totalExternos: externos.length,
@@ -101,15 +119,67 @@ const StatusBasePanel = ({ onClose, open }) => {
       totalPublicacoes: payload.publicacoes.length,
       csvFiles,
       foundFolders,
-      alerts,
+      alerts: buildAlerts({
+        colegiados: payload.colegiados,
+        membros: payload.membros,
+        reunioes: payload.reunioes,
+      }),
     };
   }, [payload]);
 
-  if (!open) {
-    return null;
-  }
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setMessage("");
+    setError("");
 
-  return (
+    try {
+      const result = await api.post("/api/auth/admin", credentials);
+      setToken(result.token);
+      setMessage(result.message || "Acesso autorizado.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const result = await api.post(
+        "/api/sincronizacoes/executar",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      await loadData();
+      setMessage(result.message || "Sincronizacao concluida com sucesso.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken("");
+    setPayload(null);
+    setCredentials(initialCredentials);
+    setSubmitting(false);
+    setSyncing(false);
+    setError("");
+    setMessage("Sessao administrativa finalizada.");
+  };
+
+  return !open ? null : (
     <>
       <button className="status-panel-backdrop" onClick={onClose} type="button" />
       <aside className="status-panel">
@@ -123,11 +193,86 @@ const StatusBasePanel = ({ onClose, open }) => {
           </button>
         </div>
 
-        {loading ? <div className="loading-state"><span className="spinner" />Carregando status da base...</div> : null}
-        {error ? <div className="inline-message">{error}</div> : null}
+        {!token ? (
+          <section className="status-panel__section">
+            <h3>Autenticacao administrativa</h3>
+            <p className="muted">
+              Informe usuario e senha para consultar o historico e executar a sincronizacao.
+            </p>
 
-        {!loading && !error && payload && derived ? (
+            <form className="form-grid" onSubmit={handleLogin}>
+              <label>
+                Usuario
+                <input
+                  autoComplete="username"
+                  onChange={(event) =>
+                    setCredentials((current) => ({ ...current, user: event.target.value }))
+                  }
+                  required
+                  value={credentials.user}
+                />
+              </label>
+
+              <label>
+                Senha
+                <input
+                  autoComplete="current-password"
+                  onChange={(event) =>
+                    setCredentials((current) => ({
+                      ...current,
+                      password: event.target.value,
+                    }))
+                  }
+                  required
+                  type="password"
+                  value={credentials.password}
+                />
+              </label>
+
+              <div className="form-actions full">
+                <button className="primary-button" disabled={submitting} type="submit">
+                  {submitting ? "Validando..." : "Entrar"}
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : null}
+
+        {loading ? (
+          <div className="loading-state">
+            <span className="spinner" />
+            Carregando status da base...
+          </div>
+        ) : null}
+
+        {message ? <div className="inline-message">{message}</div> : null}
+        {error ? <div className="inline-message danger-text">{error}</div> : null}
+
+        {!loading && token && payload && derived ? (
           <div className="status-panel__content">
+            <section className="status-panel__section">
+              <div className="section-heading">
+                <div>
+                  <h3>Controle de sincronizacao</h3>
+                  <p>Sincronize manualmente a base do Google Drive com o sistema.</p>
+                </div>
+              </div>
+
+              <div className="status-panel__actions">
+                <button
+                  className="primary-button"
+                  disabled={syncing}
+                  onClick={handleSync}
+                  type="button"
+                >
+                  {syncing ? "Sincronizando..." : "Sincronizar agora"}
+                </button>
+                <button className="text-button" onClick={handleLogout} type="button">
+                  Finalizar sessao
+                </button>
+              </div>
+            </section>
+
             <section className="status-panel__section">
               <h3>Fonte de dados</h3>
               <div className="status-panel__list">

@@ -399,6 +399,13 @@
   gap: 1rem;
 }
 
+.status-panel__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
 .status-panel__section {
   background: var(--bg-soft-2);
   border: 1px solid var(--border);
@@ -694,6 +701,10 @@
 
   .status-panel__metrics {
     grid-template-columns: 1fr;
+  }
+
+  .status-panel__actions {
+    flex-direction: column;
   }
 }
 
