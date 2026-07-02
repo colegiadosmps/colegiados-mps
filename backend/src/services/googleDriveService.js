@@ -10,7 +10,11 @@ const DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
 const DEFAULT_PUBLICATIONS_SUFFIX = "_Publicacoes";
 const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
 const GOOGLE_SHEETS_MIME = "application/vnd.google-apps.spreadsheet";
-const ROOT_CSV_NAMES = ["COLEGIADOS.CSV", "COLEGIADOS_EXTERNOS.CSV"];
+const ROOT_CSV_NAMES = [
+  "COLEGIADOS.CSV",
+  "COLEGIADOS_EXTERNOS.CSV",
+  "COLEGIADOS EXTERNOS.CSV",
+];
 
 const sanitizePrivateKey = (value) =>
   value
@@ -372,12 +376,13 @@ export const syncGoogleDrive = async () => {
 
   if (
     !rootItems.some(
-      (item) => /^colegiados_externos\.csv$/i.test(item.name) && isSupportedRootCsv(item),
+      (item) =>
+        /^colegiados(?:_| )externos\.csv$/i.test(item.name) && isSupportedRootCsv(item),
     )
   ) {
     summary.warnings.push({
-      file: "Colegiados_Externos.csv",
-      reason: "Colegiados_Externos.csv nao encontrado.",
+      file: "Colegiados Externos.csv",
+      reason: "Colegiados Externos.csv nao encontrado.",
     });
   }
 

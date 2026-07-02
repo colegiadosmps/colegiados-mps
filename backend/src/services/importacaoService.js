@@ -27,6 +27,26 @@ const getFieldValue = (record, aliases) => {
   return null;
 };
 
+const normalizeMeetingStatus = (value) => {
+  const cleaned = normalizeText(value);
+
+  if (!cleaned) {
+    return "Nao informado";
+  }
+
+  const normalized = normalizeKey(cleaned);
+
+  if (["PLANEJADA", "AGENDADA", "PREVISTA"].includes(normalized)) {
+    return "Planejada";
+  }
+
+  if (["REALIZADA", "CONCLUIDA", "CONCLUIDO"].includes(normalized)) {
+    return "Realizada";
+  }
+
+  return cleaned;
+};
+
 const registerImport = async ({
   arquivo,
   tipo,
@@ -153,6 +173,14 @@ const replaceMeetings = async ({
   await run("DELETE FROM reunioes WHERE sigla_colegiado = ?", [siglaColegiado]);
 
   for (const record of records) {
+    const idReuniao =
+      getFieldValue(record, [
+        "ID_REUNIAO",
+        "REUNIAO",
+        "NOME",
+        "TITULO",
+      ]) || "Nao informado";
+
     await run(
       `INSERT INTO reunioes (
         id_reuniao,
@@ -172,18 +200,22 @@ const replaceMeetings = async ({
         updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        normalizeText(record.ID_REUNIAO),
-        normalizeText(record.ID_COLEGIADO),
-        normalizeKey(normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado),
-        normalizeText(record.ID_UNIDADE),
-        normalizeDate(record.DATA_REUNIAO),
-        normalizeText(record.HORA),
-        normalizeText(record.LOCAL),
-        normalizeText(record.CLASSIFICACAO_PAUTA),
-        normalizeText(record.DESCRICAO_PAUTA),
-        normalizeText(record.TEXTO_ATA),
-        normalizeText(record.STATUS_REUNIAO),
-        normalizeText(record.QUORUM_REGISTRADO),
+        idReuniao,
+        getFieldValue(record, ["ID_COLEGIADO"]),
+        normalizeKey(getFieldValue(record, ["SIGLA_COLEGIADO"]) || siglaColegiado),
+        getFieldValue(record, ["ID_UNIDADE"]),
+        normalizeDate(
+          getFieldValue(record, ["DATA_REUNIAO", "DATA", "DATA_REUNIAO"]),
+        ),
+        getFieldValue(record, ["HORA", "HORARIO", "HORA_REUNIAO"]),
+        getFieldValue(record, ["LOCAL", "LOCAL_DA_REUNIAO"]),
+        getFieldValue(record, ["CLASSIFICACAO_PAUTA", "CLASSIFICACAO"]),
+        getFieldValue(record, ["DESCRICAO_PAUTA", "PAUTA", "TEXTO_ATA", "REUNIAO", "NOME", "TITULO"]),
+        getFieldValue(record, ["TEXTO_ATA"]),
+        normalizeMeetingStatus(
+          getFieldValue(record, ["STATUS_REUNIAO", "STATUS", "SITUACAO"]),
+        ),
+        getFieldValue(record, ["QUORUM_REGISTRADO"]),
         dataBase,
         arquivoOrigem,
         now,
@@ -280,6 +312,12 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
     const nome =
       getFieldValue(record, ["COLEGIADO", "NOME", "NOME_COLEGIADO"]) || "Nao informado";
     const orgao = getFieldValue(record, ["ORGAO"]) || "Nao informado";
+    const dispositivoLegal = getFieldValue(record, ["DISPOSITIVO_LEGAL"]) || null;
+    const descricao =
+      getFieldValue(record, [
+        "NATUREZA_COMPETENCIA_OU_FINALIDADE",
+        "NATUREZA_COMPETENCIA_FINALIDADE",
+      ]) || null;
     const baseSigla = normalizeKey(
       getFieldValue(record, ["SIGLA"]) || `EXT_${nome}_${orgao}`,
     );
@@ -311,16 +349,9 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
         getFieldValue(record, ["SIGLA"]) || nome,
         normalizeKey(getFieldValue(record, ["SIGLA"]) || nome),
         nome,
-        getFieldValue(record, [
-          "NATUREZA_COMPETENCIA_OU_FINALIDADE",
-          "NATUREZA_COMPETENCIA_FINALIDADE",
-          "NATUREZA_FINALIDADE",
-          "COMPETENCIA",
-          "FINALIDADE",
-          "DESCRICAO",
-        ]) || null,
+        descricao,
         orgao,
-        getFieldValue(record, ["DISPOSITIVO_LEGAL", "DISPOSITIVO"]) || null,
+        dispositivoLegal,
         now,
       ],
     );
@@ -440,7 +471,7 @@ export const importRootCsvContent = async (content, originalName) => {
         arquivoOrigem: originalName,
         records,
       });
-    } else if (/^colegiados_externos(?:\.csv)?$/i.test(originalName)) {
+    } else if (/^colegiados(?:_| )externos(?:\.csv)?$/i.test(originalName)) {
       result = await replaceExternalColegiados({
         arquivoOrigem: originalName,
         records,

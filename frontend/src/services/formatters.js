@@ -10,6 +10,7 @@ const displayOverrides = {
   CPS_TAUBATE_SP: "CPS - Taubaté/SP",
   CPS_ANAPOLIS_GO: "CPS - Anápolis/GO",
   CPS_ARACAJU_SE: "CPS - Aracaju/SE",
+  CPS_BELO_HORIZONTE_MG: "CPS - Belo Horizonte/MG",
 };
 
 const formatDateParts = (year, month, day) => `${day}/${month}/${year}`;
@@ -56,6 +57,18 @@ export const formatColegiadoDisplayName = (value) => {
   const normalized = normalizeKey(cleaned);
   if (displayOverrides[normalized]) {
     return displayOverrides[normalized];
+  }
+
+  if (normalized.startsWith("CPS_")) {
+    const parts = normalized.split("_").filter(Boolean);
+    if (parts.length >= 3) {
+      const uf = parts[parts.length - 1];
+      const city = parts
+        .slice(1, -1)
+        .map((chunk) => toTitleCase(chunk))
+        .join(" ");
+      return `CPS - ${city}/${uf}`;
+    }
   }
 
   if (cleaned.includes("_")) {

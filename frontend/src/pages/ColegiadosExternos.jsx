@@ -119,6 +119,7 @@ const ColegiadosExternos = () => {
             />
           </>
         }
+        filtersClassName="page-header__filters--inline"
         icon={HiOutlineBriefcase}
         subtitle="Consulte os colegiados externos aos quais o MPS esta vinculado."
         title="Colegiados Externos"

@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
+import { HiOutlineClipboardDocumentList, HiOutlineFolderOpen } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
-import {
-  formatBooleanStatus,
-  formatColegiadoDisplayName,
-} from "../services/formatters";
+import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const normalizeType = (value) =>
@@ -21,6 +18,23 @@ const normalizeType = (value) =>
     .toLowerCase();
 
 const typeOrder = ["camara", "comite", "conselho", "grupo de trabalho", "subcomite"];
+
+const typeDescriptions = {
+  camara: "Camaras vinculadas a colegiados e estruturas tematicas da base.",
+  comite: "Comites permanentes e tecnicos vinculados ao sistema.",
+  conselho: "Conselhos nacionais e Conselhos de Previdencia Social vinculados a base.",
+  "grupo de trabalho":
+    "Grupos de trabalho e frentes temporarias registradas no conjunto interno.",
+  subcomite: "Subcomites vinculados a colegiados com atuacao especializada.",
+};
+
+const typeSlugMap = {
+  camara: "camara",
+  comite: "comite",
+  conselho: "conselho",
+  "grupo de trabalho": "grupo-de-trabalho",
+  subcomite: "subcomite",
+};
 
 const sortTypes = (entries) =>
   [...entries].sort(([left], [right]) => {
@@ -37,6 +51,11 @@ const sortTypes = (entries) =>
     }
     return leftIndex - rightIndex;
   });
+
+const getTypeDescription = (tipo) =>
+  typeDescriptions[normalizeType(tipo)] || "Colegiados internos organizados por classificacao.";
+
+const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(tipo).replace(/\s+/g, "-");
 
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
@@ -120,61 +139,41 @@ const ColegiadosInternos = () => {
               value={filters.sigla}
               onChange={(value) => setFilters((current) => ({ ...current, sigla: value }))}
             />
-            <ClearFiltersButton
-              onClick={() => setFilters({ tipo: ALL_VALUE, sigla: ALL_VALUE })}
-            />
+            <ClearFiltersButton onClick={() => setFilters({ tipo: ALL_VALUE, sigla: ALL_VALUE })} />
           </>
         }
+        filtersClassName="page-header__filters--inline"
         icon={HiOutlineClipboardDocumentList}
-        subtitle="Base organizada por tipo de colegiado, com acesso rapido aos detalhes de cada estrutura."
+        subtitle="A base interna comeca resumida por tipo. Entre em cada categoria para ver a lista completa."
         title="Colegiados Internos"
       />
 
       <section className="content-card">
         <MetricCard
-          caption="Base oficial carregada"
-          icon={HiOutlineClipboardDocumentList}
-          label="Colegiados internos"
+          caption="Categorias filtradas"
+          icon={HiOutlineFolderOpen}
+          label="Tipos de colegiado"
           tone="blue"
-          value={filteredColegiados.length}
+          value={grouped.length}
         />
       </section>
 
-      <section className="type-groups">
+      <section className="type-summary-grid">
         {grouped.map(([tipo, items]) => (
-          <article className="type-card" key={tipo}>
-            <div className="type-card__header">
-              <div>
-                <p className="eyebrow">Tipo de colegiado</p>
-                <h3>{tipo}</h3>
-              </div>
+          <article className="type-summary-card" key={tipo}>
+            <div className="type-summary-card__top">
+              <p className="eyebrow">Tipo de colegiado</p>
+              <h3>{tipo}</h3>
               <span className="pill">{items.length} colegiado(s)</span>
             </div>
-
-            <div className="colegiado-grid">
-              {items.map((item) => (
-                <button
-                  className="colegiado-tile"
-                  key={item.sigla}
-                  onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
-                  type="button"
-                >
-                  <div className="colegiado-tile__header">
-                    <span className="pill">
-                      {formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}
-                    </span>
-                    <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
-                      {formatBooleanStatus(item.ativo)}
-                    </span>
-                  </div>
-                  <h4>{item.nome || formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}</h4>
-                  <div className="colegiado-tile__stats">
-                    <span>{item.total_membros || 0} membros</span>
-                    <span>{item.total_reunioes || 0} reunioes</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <p>{getTypeDescription(tipo)}</p>
+            <button
+              className="text-button type-summary-card__action"
+              onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo)}`)}
+              type="button"
+            >
+              Ver {normalizeType(tipo) === "conselho" ? "conselhos" : tipo.toLowerCase()}
+            </button>
           </article>
         ))}
         {!grouped.length ? (

@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import CalendarioReunioes from "./pages/CalendarioReunioes";
 import ColegiadosExternos from "./pages/ColegiadosExternos";
 import ColegiadosInternos from "./pages/ColegiadosInternos";
+import ColegiadosInternosTipo from "./pages/ColegiadosInternosTipo";
 import ConsultaColegiado from "./pages/ConsultaColegiado";
 import HistoricoReunioes from "./pages/HistoricoReunioes";
 import Integrantes from "./pages/Integrantes";
@@ -29,6 +30,10 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/colegiados/internos" element={<ColegiadosInternos />} />
+              <Route
+                path="/colegiados/internos/tipo/:tipoSlug"
+                element={<ColegiadosInternosTipo />}
+              />
               <Route path="/colegiados/externos" element={<ColegiadosExternos />} />
               <Route path="/colegiados/:sigla" element={<ConsultaColegiado />} />
               <Route path="/integrantes" element={<Integrantes />} />

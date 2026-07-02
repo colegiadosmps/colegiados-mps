@@ -5,6 +5,7 @@ const PageHeader = ({
   children,
   eyebrow = "Painel de consulta",
   filters,
+  filtersClassName = "",
   icon: Icon,
   metricCaption,
   metricIcon,
@@ -42,7 +43,9 @@ const PageHeader = ({
             value={metricValue}
           />
         ) : null}
-        {filters ? <div className="page-header__filters">{filters}</div> : null}
+        {filters ? (
+          <div className={`page-header__filters ${filtersClassName}`.trim()}>{filters}</div>
+        ) : null}
       </div>
     ) : null}
     {children ? <div className="page-header__footer">{children}</div> : null}

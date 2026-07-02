@@ -1,10 +1,15 @@
 import { normalizeKey } from "../utils/formatters.js";
 
+const normalizeFileNameInput = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 const filePattern =
-  /^(?<sigla>.+?)_(?<tipo>Membros|Reunioes|Reuniao|Reuniões|Reunião)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})(?:\.csv)?$/i;
+  /^(?<sigla>.+?)_(?<tipo>Membros|Reunioes|Reuniao)_(?<day>\d{2})_(?<month>\d{2})_(?<year>\d{4})(?:\.csv)?$/i;
 
 const normalizeFileType = (value) => {
-  const normalized = value.toLowerCase();
+  const normalized = String(value || "").toLowerCase();
 
   if (normalized === "membros") {
     return "Membros";
@@ -14,7 +19,8 @@ const normalizeFileType = (value) => {
 };
 
 export const parseFileName = (fileName) => {
-  const match = fileName.match(filePattern);
+  const normalizedFileName = normalizeFileNameInput(fileName);
+  const match = normalizedFileName.match(filePattern);
 
   if (!match?.groups) {
     throw new Error(

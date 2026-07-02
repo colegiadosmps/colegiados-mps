@@ -1,16 +1,18 @@
 import { Link } from "react-router-dom";
-import { formatDateTime } from "../services/formatters";
+import { formatColegiadoDisplayName, formatDateTime } from "../services/formatters";
 
 const CardColegiado = ({ colegiado }) => (
   <article className="entity-card">
     <div className="entity-card__header">
-      <span className="pill">{colegiado.sigla}</span>
+      <span className="pill">
+        {formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}
+      </span>
       <span className={`badge ${colegiado.ativo === "Sim" ? "success" : "danger"}`}>
         {colegiado.tipo || "Nao informado"}
       </span>
     </div>
 
-    <h3>{colegiado.nome}</h3>
+    <h3>{colegiado.nome || formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}</h3>
     <p className="muted">
       {colegiado.ultima_atualizacao
         ? `Atualizado em ${formatDateTime(colegiado.ultima_atualizacao)}`

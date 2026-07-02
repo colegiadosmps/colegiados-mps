@@ -29,7 +29,13 @@ const membrosColumns = [
 ];
 
 const calendarioColumns = [
-  { key: "id_reuniao", label: "Reuniao", width: "160px", render: (row) => row.id_reuniao || "-" },
+  {
+    key: "id_reuniao",
+    label: "Reuniao",
+    width: "220px",
+    className: "cell-wrap",
+    render: (row) => row.id_reuniao || row.descricao_pauta || "-",
+  },
   { key: "local", label: "Local", width: "180px", className: "cell-wrap" },
   { key: "data_reuniao", label: "Data", width: "120px" },
   { key: "hora", label: "Horario", width: "100px" },
