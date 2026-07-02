@@ -15,6 +15,7 @@ import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
+import { formatColegiadoDisplayName } from "../services/formatters";
 
 const aggregateBy = (rows, key, fallback = "Nao informado") => {
   const counts = new Map();
@@ -182,7 +183,10 @@ const Dashboard = () => {
         />
         <GraficoBarras
           color="#2b74ff"
-          data={derived.charts.integrantesPorColegiado}
+          data={derived.charts.integrantesPorColegiado.map((item) => ({
+            ...item,
+            label: formatColegiadoDisplayName(item.label),
+          }))}
           title="Quantidade de Integrantes por Colegiado"
         />
         <DonutChartCard

@@ -1,9 +1,17 @@
 import PowerBiTable from "./PowerBiTable";
-import { formatBooleanStatus } from "../services/formatters";
+import {
+  formatBooleanStatus,
+  formatColegiadoDisplayName,
+} from "../services/formatters";
 
-const columns = [
+const buildColumns = () => [
   { key: "nome_membro", label: "Nome", width: "220px" },
-  { key: "sigla_colegiado", label: "Colegiado", width: "120px" },
+  {
+    key: "sigla_colegiado",
+    label: "Colegiado",
+    width: "160px",
+    render: (membro) => formatColegiadoDisplayName(membro.sigla_colegiado),
+  },
   { key: "tipo_vinculo", label: "Tipo de Vinculo", width: "170px" },
   { key: "papel", label: "Papel", width: "160px" },
   {
@@ -28,7 +36,7 @@ const columns = [
 
 const TabelaMembros = ({ membros }) => (
   <PowerBiTable
-    columns={columns}
+    columns={buildColumns()}
     emptyMessage="Nenhum integrante encontrado para os filtros selecionados."
     rowsPerPageOptions={[10, 25, 50]}
     rows={membros}

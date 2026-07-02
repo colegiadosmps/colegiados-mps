@@ -2,6 +2,7 @@ import { all, exec, run } from "../database/db.js";
 import { parseCsvContent, readCsvFile } from "./csvService.js";
 import { parseFileName } from "./fileNameService.js";
 import {
+  formatDateTime,
   normalizeBooleanStatus,
   normalizeDate,
   normalizeKey,
@@ -35,6 +36,8 @@ const registerImport = async ({
   status,
   observacao,
 }) => {
+  const now = formatDateTime(new Date());
+
   await run(
     `INSERT INTO importacoes (
       arquivo,
@@ -45,12 +48,13 @@ const registerImport = async ({
       quantidade_registros,
       status,
       observacao
-    ) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       arquivo,
       tipo,
       siglaColegiado,
       dataBase,
+      now,
       quantidadeRegistros,
       status,
       observacao || null,
@@ -59,6 +63,8 @@ const registerImport = async ({
 };
 
 const ensureColegiado = async (siglaColegiado) => {
+  const now = formatDateTime(new Date());
+
   await run(
     `INSERT INTO colegiados (
       sigla,
@@ -70,10 +76,10 @@ const ensureColegiado = async (siglaColegiado) => {
       descricao,
       ativo,
       updated_at
-    ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, 'Sim', datetime('now'))
+    ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, 'Sim', ?)
      ON CONFLICT(sigla) DO UPDATE SET
        chave_pasta = excluded.chave_pasta,
-       updated_at = datetime('now')`,
+       updated_at = excluded.updated_at`,
     [
       siglaColegiado,
       siglaColegiado,
@@ -81,6 +87,7 @@ const ensureColegiado = async (siglaColegiado) => {
       siglaColegiado,
       "Nao informado",
       "Colegiado criado automaticamente a partir da importacao.",
+      now,
     ],
   );
 };
@@ -91,6 +98,7 @@ const replaceMembers = async ({
   arquivoOrigem,
   records,
 }) => {
+  const now = formatDateTime(new Date());
   await run("DELETE FROM membros WHERE sigla_colegiado = ?", [siglaColegiado]);
 
   for (const record of records) {
@@ -112,7 +120,7 @@ const replaceMembers = async ({
         data_base,
         arquivo_origem,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         normalizeText(record.NOME_MEMBRO) || "Nao informado",
         normalizeKey(normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado),
@@ -129,6 +137,7 @@ const replaceMembers = async ({
         normalizeBooleanStatus(record.ATIVO),
         dataBase,
         arquivoOrigem,
+        now,
       ],
     );
   }
@@ -140,6 +149,7 @@ const replaceMeetings = async ({
   arquivoOrigem,
   records,
 }) => {
+  const now = formatDateTime(new Date());
   await run("DELETE FROM reunioes WHERE sigla_colegiado = ?", [siglaColegiado]);
 
   for (const record of records) {
@@ -160,7 +170,7 @@ const replaceMeetings = async ({
         data_base,
         arquivo_origem,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         normalizeText(record.ID_REUNIAO),
         normalizeText(record.ID_COLEGIADO),
@@ -176,12 +186,14 @@ const replaceMeetings = async ({
         normalizeText(record.QUORUM_REGISTRADO),
         dataBase,
         arquivoOrigem,
+        now,
       ],
     );
   }
 };
 
 const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
+  const now = formatDateTime(new Date());
   await run("DELETE FROM colegiados WHERE categoria = 'Interno'");
 
   for (const record of records) {
@@ -214,7 +226,7 @@ const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
         observacoes,
         ativo,
         updated_at
-      ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, 'Interno', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         normalizeKey(siglaExibicao),
         siglaExibicao,
@@ -233,6 +245,7 @@ const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
         getFieldValue(record, ["REGRA_DE_QUORUM", "REGRA_QUORUM"]) || null,
         getFieldValue(record, ["OBSERVACOES", "OBSERVACAO"]) || null,
         normalizeBooleanStatus(getFieldValue(record, ["STATUS", "ATIVO"])),
+        now,
       ],
     );
   }
@@ -258,6 +271,7 @@ const replaceInternalColegiados = async ({ arquivoOrigem, records }) => {
 };
 
 const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
+  const now = formatDateTime(new Date());
   await run("DELETE FROM colegiados WHERE categoria = 'Externo'");
 
   const usedSiglas = new Set();
@@ -291,7 +305,7 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
         dispositivo_legal,
         ativo,
         updated_at
-      ) VALUES (?, ?, ?, ?, 'Externo', 'Externo', ?, ?, ?, 'Sim', datetime('now'))`,
+      ) VALUES (?, ?, ?, ?, 'Externo', 'Externo', ?, ?, ?, 'Sim', ?)`,
       [
         sigla,
         getFieldValue(record, ["SIGLA"]) || nome,
@@ -301,9 +315,13 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
           "NATUREZA_COMPETENCIA_OU_FINALIDADE",
           "NATUREZA_COMPETENCIA_FINALIDADE",
           "NATUREZA_FINALIDADE",
+          "COMPETENCIA",
+          "FINALIDADE",
+          "DESCRICAO",
         ]) || null,
         orgao,
-        getFieldValue(record, ["DISPOSITIVO_LEGAL"]) || null,
+        getFieldValue(record, ["DISPOSITIVO_LEGAL", "DISPOSITIVO"]) || null,
+        now,
       ],
     );
   }

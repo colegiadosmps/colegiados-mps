@@ -10,6 +10,7 @@ import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import TabelaMembros from "../components/TabelaMembros";
 import { api } from "../services/api";
+import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const aggregateBy = (rows, key) => {
@@ -18,7 +19,9 @@ const aggregateBy = (rows, key) => {
     const label = row[key] || "Nao informado";
     counts.set(label, (counts.get(label) || 0) + 1);
   });
-  return Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
+  return Array.from(counts.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
 };
 
 const Integrantes = () => {
@@ -63,7 +66,9 @@ const Integrantes = () => {
     const searchTerm = filters.nome.toLowerCase();
     return membros.filter((membro) => {
       const matchesColegiado =
-        filters.colegiado === ALL_VALUE || membro.sigla_colegiado === filters.colegiado;
+        filters.colegiado === ALL_VALUE ||
+        membro.sigla_colegiado === filters.colegiado ||
+        formatColegiadoDisplayName(membro.sigla_colegiado) === filters.colegiado;
       const matchesNome =
         !searchTerm || membro.nome_membro?.toLowerCase().includes(searchTerm);
       const matchesTipo =
@@ -96,7 +101,11 @@ const Integrantes = () => {
         <div className="section-toolbar__filters">
           <FilterDropdown
             label="Tipo/Colegiado"
-            options={buildOptions(colegiados.map((item) => item.sigla))}
+            options={buildOptions(
+              colegiados.map((item) =>
+                formatColegiadoDisplayName(item.sigla_exibicao || item.sigla),
+              ),
+            )}
             value={filters.colegiado}
             onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
           />

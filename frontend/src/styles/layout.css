@@ -277,6 +277,7 @@
   margin: 0;
   font-size: clamp(2rem, 3vw, 3rem);
   line-height: 1.02;
+  overflow-wrap: anywhere;
 }
 
 .page-header__subtitle {
@@ -295,7 +296,7 @@
 
 .page-header__filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.85rem;
   align-items: stretch;
 }
@@ -382,7 +383,7 @@
 
 .cards-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -586,6 +587,12 @@
   padding-left: 1rem;
   display: grid;
   gap: 0.45rem;
+}
+
+.status-panel__bullet-list.is-scrollable {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 0.45rem;
 }
 
 .app-modal {

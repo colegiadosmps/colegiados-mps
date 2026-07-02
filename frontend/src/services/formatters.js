@@ -3,9 +3,35 @@ const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 const dateOnlyPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::\d{2})?$/;
 const timeOnlyPattern = /^(\d{2}):(\d{2})(?::\d{2})?$/;
+const displayOverrides = {
+  GTGD_MPS: "GTGD - MPS",
+  CPS_SANTOS_SP: "CPS - Santos/SP",
+  CPS_SAO_PAULO_SP: "CPS - São Paulo/SP",
+  CPS_TAUBATE_SP: "CPS - Taubaté/SP",
+  CPS_ANAPOLIS_GO: "CPS - Anápolis/GO",
+  CPS_ARACAJU_SE: "CPS - Aracaju/SE",
+};
 
 const formatDateParts = (year, month, day) => `${day}/${month}/${year}`;
 const formatTimeParts = (hours, minutes) => `${hours}:${minutes}`;
+const normalizeKey = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^A-Za-z0-9_]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase();
+
+const toTitleCase = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
 export const formatBooleanStatus = (value) => {
   if (!value) {
     return "Nao informado";
@@ -19,6 +45,33 @@ export const formatBooleanStatus = (value) => {
     return "Inativo";
   }
   return value;
+};
+
+export const formatColegiadoDisplayName = (value) => {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return "-";
+  }
+
+  const normalized = normalizeKey(cleaned);
+  if (displayOverrides[normalized]) {
+    return displayOverrides[normalized];
+  }
+
+  if (cleaned.includes("_")) {
+    return cleaned
+      .split("_")
+      .filter(Boolean)
+      .map((chunk, index) => {
+        if (index === 0 || chunk.length <= 3) {
+          return chunk.toUpperCase();
+        }
+        return toTitleCase(chunk);
+      })
+      .join(" - ");
+  }
+
+  return cleaned;
 };
 
 export const formatDate = (value) => {

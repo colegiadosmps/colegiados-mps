@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../services/api";
-import { formatDateTime } from "../services/formatters";
+import {
+  formatColegiadoDisplayName,
+  formatDateTime,
+} from "../services/formatters";
 
 const initialCredentials = {
   user: "",
@@ -33,6 +36,9 @@ const buildAlerts = ({ colegiados, membros, reunioes }) => {
 
   return alerts;
 };
+
+const listClassName = (items) =>
+  `status-panel__bullet-list ${items.length > 5 ? "is-scrollable" : ""}`;
 
 const StatusBasePanel = ({ onClose, open }) => {
   const [credentials, setCredentials] = useState(initialCredentials);
@@ -204,7 +210,7 @@ const StatusBasePanel = ({ onClose, open }) => {
               <div className="status-panel__list">
                 <p>
                   <strong>Pasta principal:</strong>{" "}
-                  {payload.driveStatus.root_folder_id || "Nao informado"}
+                  {payload.driveStatus.root_folder_label || "Google Drive"}
                 </p>
                 <p>
                   <strong>Ultima leitura:</strong>{" "}
@@ -328,9 +334,9 @@ const StatusBasePanel = ({ onClose, open }) => {
             </section>
 
             <section className="status-panel__section">
-              <h3>Arquivos CSV identificados</h3>
+              <h3>Arquivos CSV identificados ({derived.csvFiles.length})</h3>
               {derived.csvFiles.length ? (
-                <ul className="status-panel__bullet-list">
+                <ul className={listClassName(derived.csvFiles)}>
                   {derived.csvFiles.map((file) => (
                     <li key={file}>{file}</li>
                   ))}
@@ -341,9 +347,9 @@ const StatusBasePanel = ({ onClose, open }) => {
             </section>
 
             <section className="status-panel__section">
-              <h3>Arquivos importados</h3>
+              <h3>Arquivos importados ({derived.importedFiles.length})</h3>
               {derived.importedFiles.length ? (
-                <ul className="status-panel__bullet-list">
+                <ul className={listClassName(derived.importedFiles)}>
                   {derived.importedFiles.map((item) => (
                     <li key={`${item.arquivo}-${item.id || item.data_base || "ok"}`}>
                       {item.arquivo} ({item.quantidade_registros} registro(s))
@@ -356,24 +362,39 @@ const StatusBasePanel = ({ onClose, open }) => {
             </section>
 
             <section className="status-panel__section">
-              <h3>Arquivos ignorados e alertas</h3>
-              {[...derived.ignoredFiles, ...derived.warningFiles].length ? (
-                <ul className="status-panel__bullet-list">
-                  {[...derived.ignoredFiles, ...derived.warningFiles].map((item, index) => (
+              <h3>Arquivos ignorados ({derived.ignoredFiles.length})</h3>
+              {derived.ignoredFiles.length ? (
+                <ul className={listClassName(derived.ignoredFiles)}>
+                  {derived.ignoredFiles.map((item, index) => (
                     <li key={`${item.arquivo}-${index}`}>
                       {item.arquivo}: {item.observacao || item.status}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="muted">Nenhum arquivo ignorado.</p>
+                <p className="muted">Nenhum arquivo ignorado na ultima leitura.</p>
               )}
             </section>
 
             <section className="status-panel__section">
-              <h3>Erros de sincronizacao</h3>
+              <h3>Alertas ({derived.warningFiles.length})</h3>
+              {derived.warningFiles.length ? (
+                <ul className={listClassName(derived.warningFiles)}>
+                  {derived.warningFiles.map((item, index) => (
+                    <li key={`${item.arquivo}-${index}`}>
+                      {item.arquivo}: {item.observacao || item.status}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Nenhum alerta registrado na ultima leitura.</p>
+              )}
+            </section>
+
+            <section className="status-panel__section">
+              <h3>Erros de sincronizacao ({derived.errorFiles.length})</h3>
               {derived.errorFiles.length ? (
-                <ul className="status-panel__bullet-list">
+                <ul className={listClassName(derived.errorFiles)}>
                   {derived.errorFiles.map((item, index) => (
                     <li key={`${item.arquivo}-${index}`}>
                       {item.arquivo}: {item.observacao || "Erro nao detalhado"}
@@ -386,11 +407,11 @@ const StatusBasePanel = ({ onClose, open }) => {
             </section>
 
             <section className="status-panel__section">
-              <h3>Pastas de colegiados encontradas</h3>
+              <h3>Pastas de colegiados encontradas ({derived.foundFolders.length})</h3>
               {derived.foundFolders.length ? (
-                <ul className="status-panel__bullet-list">
+                <ul className={listClassName(derived.foundFolders)}>
                   {derived.foundFolders.map((folder) => (
-                    <li key={folder}>{folder}</li>
+                    <li key={folder}>{formatColegiadoDisplayName(folder)}</li>
                   ))}
                 </ul>
               ) : (
@@ -399,9 +420,9 @@ const StatusBasePanel = ({ onClose, open }) => {
             </section>
 
             <section className="status-panel__section">
-              <h3>Alertas e inconsistencias</h3>
+              <h3>Alertas e inconsistencias ({derived.alerts.length})</h3>
               {derived.alerts.length ? (
-                <ul className="status-panel__bullet-list">
+                <ul className={listClassName(derived.alerts)}>
                   {derived.alerts.map((alert) => (
                     <li key={alert}>{alert}</li>
                   ))}

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { get, run } from "../database/db.js";
 import { importCsvContent, importRootCsvContent } from "./importacaoService.js";
 import { parseFileName } from "./fileNameService.js";
-import { normalizeKey } from "../utils/formatters.js";
+import { formatDateTime, normalizeKey } from "../utils/formatters.js";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -10,6 +10,7 @@ const DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
 const DEFAULT_PUBLICATIONS_SUFFIX = "_Publicacoes";
 const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
 const GOOGLE_SHEETS_MIME = "application/vnd.google-apps.spreadsheet";
+const ROOT_CSV_NAMES = ["COLEGIADOS.CSV", "COLEGIADOS_EXTERNOS.CSV"];
 
 const sanitizePrivateKey = (value) =>
   value
@@ -202,6 +203,7 @@ const upsertPublicationFolder = async ({
   driveFolderId,
   dataBase,
 }) => {
+  const now = formatDateTime(new Date());
   const existing = await get(
     `SELECT id
      FROM pastas_publicacoes
@@ -212,9 +214,9 @@ const upsertPublicationFolder = async ({
   if (existing) {
     await run(
       `UPDATE pastas_publicacoes
-       SET link_pasta = ?, drive_folder_id = ?, data_base = ?, ativo = 'Sim', updated_at = datetime('now')
+       SET link_pasta = ?, drive_folder_id = ?, data_base = ?, ativo = 'Sim', updated_at = ?
        WHERE id = ?`,
-      [linkPasta, driveFolderId || null, dataBase || null, existing.id],
+      [linkPasta, driveFolderId || null, dataBase || null, now, existing.id],
     );
     return "updated";
   }
@@ -228,16 +230,28 @@ const upsertPublicationFolder = async ({
       data_base,
       ativo,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, 'Sim', datetime('now'))`,
-    [siglaColegiado, nomePasta, linkPasta, driveFolderId || null, dataBase || null],
+    ) VALUES (?, ?, ?, ?, ?, 'Sim', ?)`,
+    [siglaColegiado, nomePasta, linkPasta, driveFolderId || null, dataBase || null, now],
   );
 
   return "created";
 };
 
-const isSupportedRootCsv = (item) =>
-  /^(Colegiados(?:\.csv)?|Colegiados_Externos(?:\.csv)?)$/i.test(item.name) &&
-  (item.mimeType === "text/csv" || item.mimeType === GOOGLE_SHEETS_MIME);
+const isSupportedRootCsv = (item) => {
+  const fileName = String(item.name || "").trim();
+  const normalizedName = fileName.toUpperCase();
+  const isKnownRootFile = ROOT_CSV_NAMES.includes(normalizedName);
+  const hasCsvExtension = fileName.toLowerCase().endsWith(".csv");
+  const mimeType = String(item.mimeType || "").toLowerCase();
+  const hasCompatibleMimeType =
+    mimeType === "text/csv" ||
+    mimeType === GOOGLE_SHEETS_MIME ||
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType === "text/plain" ||
+    mimeType === "application/octet-stream";
+
+  return isKnownRootFile && (hasCsvExtension || hasCompatibleMimeType);
+};
 
 const isCsvCandidate = (item) =>
   item.mimeType === "text/csv" ||
@@ -253,17 +267,37 @@ const findPublicationFolders = (items, folderName, suffix) => {
   );
 };
 
-export const getGoogleDriveStatus = () => {
+export const getGoogleDriveStatus = async () => {
   const config = getConfig();
-
-  return {
+  const baseStatus = {
     configured: Boolean(
       config.rootFolderId && config.serviceAccountEmail && config.privateKey,
     ),
     root_folder_id: config.rootFolderId || null,
+    root_folder_name: null,
+    root_folder_label: config.rootFolderId ? "Google Drive" : null,
     publications_suffix: config.publicationsSuffix,
     service_account_email: config.serviceAccountEmail || null,
   };
+
+  if (!baseStatus.configured) {
+    return baseStatus;
+  }
+
+  try {
+    const drive = await createDriveClient();
+    const rootFolder = await drive.getFile(config.rootFolderId);
+
+    return {
+      ...baseStatus,
+      root_folder_name: rootFolder.name || null,
+      root_folder_label: rootFolder.name
+        ? `Google Drive / ${rootFolder.name}`
+        : "Google Drive",
+    };
+  } catch (_error) {
+    return baseStatus;
+  }
 };
 
 export const syncGoogleDrive = async () => {
@@ -329,14 +363,18 @@ export const syncGoogleDrive = async () => {
     }
   }
 
-  if (!rootCsvFiles.some((item) => /^colegiados(?:\.csv)?$/i.test(item.name))) {
+  if (!rootItems.some((item) => /^colegiados\.csv$/i.test(item.name) && isSupportedRootCsv(item))) {
     summary.warnings.push({
       file: "Colegiados.csv",
       reason: "Colegiados.csv nao encontrado.",
     });
   }
 
-  if (!rootCsvFiles.some((item) => /^colegiados_externos(?:\.csv)?$/i.test(item.name))) {
+  if (
+    !rootItems.some(
+      (item) => /^colegiados_externos\.csv$/i.test(item.name) && isSupportedRootCsv(item),
+    )
+  ) {
     summary.warnings.push({
       file: "Colegiados_Externos.csv",
       reason: "Colegiados_Externos.csv nao encontrado.",
@@ -444,7 +482,7 @@ export const syncGoogleDrive = async () => {
       if (!publicationFolders.length) {
         summary.warnings.push({
           file: colegiadoFolder.name,
-          reason: "Pasta correspondente ao colegiado nao localizada.",
+          reason: `Pasta de publicacoes nao encontrada para ${colegiadoFolder.name}.`,
         });
       }
     } catch (error) {

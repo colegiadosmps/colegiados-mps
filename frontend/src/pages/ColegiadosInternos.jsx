@@ -7,7 +7,10 @@ import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
-import { formatBooleanStatus } from "../services/formatters";
+import {
+  formatBooleanStatus,
+  formatColegiadoDisplayName,
+} from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const normalizeType = (value) =>
@@ -69,7 +72,8 @@ const ColegiadosInternos = () => {
       const matchesSigla =
         filters.sigla === ALL_VALUE ||
         item.sigla === filters.sigla ||
-        item.sigla_exibicao === filters.sigla;
+        item.sigla_exibicao === filters.sigla ||
+        formatColegiadoDisplayName(item.sigla_exibicao || item.sigla) === filters.sigla;
       return matchesTipo && matchesSigla;
     });
   }, [colegiados, filters]);
@@ -78,7 +82,7 @@ const ColegiadosInternos = () => {
     const groups = new Map();
 
     filteredColegiados.forEach((item) => {
-      const groupKey = item.tipo || "Nao informado";
+      const groupKey = item.tipo || "Sem classificacao";
       const current = groups.get(groupKey) || [];
       current.push(item);
       groups.set(groupKey, current);
@@ -92,7 +96,7 @@ const ColegiadosInternos = () => {
   }
 
   if (!colegiados.length) {
-    return <div className="empty-state">Base de colegiados internos nao encontrada.</div>;
+    return <div className="empty-state">Base de colegiados internos nao foi carregada.</div>;
   }
 
   return (
@@ -108,7 +112,11 @@ const ColegiadosInternos = () => {
             />
             <FilterDropdown
               label="Sigla Colegiado"
-              options={buildOptions(colegiados.map((item) => item.sigla_exibicao || item.sigla))}
+              options={buildOptions(
+                colegiados.map((item) =>
+                  formatColegiadoDisplayName(item.sigla_exibicao || item.sigla),
+                ),
+              )}
               value={filters.sigla}
               onChange={(value) => setFilters((current) => ({ ...current, sigla: value }))}
             />
@@ -152,12 +160,14 @@ const ColegiadosInternos = () => {
                   type="button"
                 >
                   <div className="colegiado-tile__header">
-                    <span className="pill">{item.sigla_exibicao || item.sigla}</span>
+                    <span className="pill">
+                      {formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}
+                    </span>
                     <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
                       {formatBooleanStatus(item.ativo)}
                     </span>
                   </div>
-                  <h4>{item.nome}</h4>
+                  <h4>{item.nome || formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}</h4>
                   <div className="colegiado-tile__stats">
                     <span>{item.total_membros || 0} membros</span>
                     <span>{item.total_reunioes || 0} reunioes</span>
@@ -167,6 +177,9 @@ const ColegiadosInternos = () => {
             </div>
           </article>
         ))}
+        {!grouped.length ? (
+          <div className="empty-state">Nenhum colegiado interno encontrado para os filtros selecionados.</div>
+        ) : null}
       </section>
     </div>
   );

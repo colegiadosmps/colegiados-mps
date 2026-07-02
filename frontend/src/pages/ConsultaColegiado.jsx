@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import {
   HiOutlineCalendarDays,
   HiOutlineClipboardDocumentList,
-  HiOutlineDocumentText,
   HiOutlineFolderOpen,
   HiOutlineXMark,
   HiOutlineUsers,
@@ -13,15 +12,13 @@ import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
-import { formatBooleanStatus, formatDate } from "../services/formatters";
+import {
+  formatBooleanStatus,
+  formatColegiadoDisplayName,
+  formatDate,
+} from "../services/formatters";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions } from "../services/filterUtils";
-
-const reunioesColumns = [
-  { key: "id_reuniao", label: "Reuniao", width: "160px", render: (row) => row.id_reuniao || "-" },
-  { key: "data_reuniao", label: "Data", width: "120px" },
-  { key: "status_reuniao", label: "Status", width: "140px" },
-];
 
 const membrosColumns = [
   { key: "nome_membro", label: "Nome", width: "220px" },
@@ -57,29 +54,13 @@ const publicacoesColumns = [
   },
 ];
 
-const summaryRows = (colegiado) => [
-  ["Nome", colegiado.nome || "Nao informado"],
-  ["Sigla", colegiado.sigla_exibicao || colegiado.sigla || "Nao informado"],
-  ["Tipo", colegiado.tipo || "Nao informado"],
-  ["Colegiado Pai", colegiado.sigla_colegiado_pai || "Nao informado"],
-  ["Unidade", colegiado.unidade || "Nao informado"],
-  ["Sigla Unidade Pai", colegiado.sigla_unidade_pai || "Nao informado"],
-  ["Ato de Criacao", colegiado.ato_criacao || "Nao informado"],
-  ["Data de Instituicao", colegiado.data_instituicao || "Nao informado"],
-  ["Data de Termino", colegiado.data_termino || "Nao informado"],
-  ["Quantidade minima de reunioes anuais", colegiado.qtd_min_reunioes_anuais || "Nao informado"],
-  ["Regra de Quorum", colegiado.regra_quorum || "Nao informado"],
-  ["Status", formatBooleanStatus(colegiado.ativo)],
-  ["Observacoes", colegiado.observacoes || "Nao informado"],
-];
-
-const statItems = (colegiado) => [
-  { label: "Sigla", value: colegiado.sigla_exibicao || colegiado.sigla || "Nao informado" },
-  { label: "Tipo", value: colegiado.tipo || "Nao informado" },
-  { label: "Status", value: formatBooleanStatus(colegiado.ativo) },
-  { label: "Membros", value: `${colegiado.membros?.length || 0} membros` },
-  { label: "Reunioes", value: `${colegiado.reunioes?.length || 0} reunioes` },
-];
+const statItems = (colegiado) =>
+  [
+    colegiado.tipo ? { label: "Tipo", value: colegiado.tipo } : null,
+    { label: "Status", value: formatBooleanStatus(colegiado.ativo) },
+    { label: "Membros", value: `${colegiado.membros?.length || 0} membros` },
+    { label: "Reunioes", value: `${colegiado.reunioes?.length || 0} reunioes` },
+  ].filter(Boolean);
 
 const ModalSection = ({ children, onClose, title }) => (
   <>
@@ -120,14 +101,22 @@ const ConsultaColegiado = () => {
       .catch((requestError) => setError(requestError.message));
   }, [sigla]);
 
-  const summary = useMemo(() => {
+  const stats = useMemo(() => (colegiado ? statItems(colegiado) : []), [colegiado]);
+  const resumoGeral = useMemo(() => {
     if (!colegiado) {
       return [];
     }
-    return summaryRows(colegiado);
-  }, [colegiado]);
 
-  const stats = useMemo(() => (colegiado ? statItems(colegiado) : []), [colegiado]);
+    return [
+      ["Data de Instituicao", formatDate(colegiado.data_instituicao)],
+      ["Data de Termino", formatDate(colegiado.data_termino)],
+      ["Quantidade minima de reunioes anuais", colegiado.qtd_min_reunioes_anuais],
+      ["Regra de Quorum", colegiado.regra_quorum],
+      ["Colegiado Pai", formatColegiadoDisplayName(colegiado.sigla_colegiado_pai)],
+      ["Unidade", colegiado.unidade],
+      ["Observacoes", colegiado.observacoes],
+    ].filter(([, value]) => value && value !== "-" && value !== "Nao informado");
+  }, [colegiado]);
   const filteredMembers = useMemo(() => {
     if (!colegiado?.membros) {
       return [];
@@ -163,8 +152,14 @@ const ConsultaColegiado = () => {
       <PageHeader
         filters={null}
         icon={HiOutlineClipboardDocumentList}
-        subtitle="Detalhamento estrutural do colegiado selecionado, com modais para membros, reunioes, calendario e publicacoes."
-        title={colegiado.sigla_exibicao || colegiado.sigla || colegiado.nome}
+        subtitle={
+          colegiado.nome &&
+          colegiado.nome !== colegiado.sigla &&
+          colegiado.nome !== colegiado.sigla_exibicao
+            ? colegiado.nome
+            : "Detalhamento estrutural do colegiado selecionado."
+        }
+        title={formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}
       >
         <div className="detail-hero-stats">
           {stats.map((item) => (
@@ -176,47 +171,36 @@ const ConsultaColegiado = () => {
         </div>
       </PageHeader>
 
-      <section className="detail-grid detail-grid--summary">
-        {summary.map(([label, value]) => (
-          <article className="detail-panel detail-panel--info" key={label}>
-            <h3>{label}</h3>
-            <div className="detail-value">
-              {label.includes("Data") ? formatDate(value) : value || "Nao informado"}
-            </div>
-          </article>
-        ))}
-      </section>
-
       <section className="detail-grid">
         <article className="detail-panel detail-panel--wide">
           <h3>Competencias</h3>
           <div className="detail-value">
-            {colegiado.competencia ||
-              colegiado.descricao ||
-              "Competencias nao informadas."}
+            {colegiado.competencia || "Competencias nao cadastradas na base."}
           </div>
         </article>
         <article className="detail-panel detail-panel--wide">
-          <h3>Resumo Legal</h3>
-          <div className="status-panel__list">
-            <p><strong>Ato de Criacao:</strong> {colegiado.ato_criacao || "Nao informado"}</p>
-            <p><strong>Data de Instituicao:</strong> {colegiado.data_instituicao || "Nao informado"}</p>
-            <p><strong>Data de Termino:</strong> {colegiado.data_termino || "Nao informado"}</p>
-            <p><strong>Quantidade minima de reunioes anuais:</strong> {colegiado.qtd_min_reunioes_anuais || "Nao informado"}</p>
-            <p><strong>Regra de Quorum:</strong> {colegiado.regra_quorum || "Nao informado"}</p>
-            <p><strong>Status:</strong> {formatBooleanStatus(colegiado.ativo)}</p>
-            <p><strong>Observacoes:</strong> {colegiado.observacoes || "Nao informado"}</p>
+          <h3>Ato de Criacao</h3>
+          <div className="detail-value">
+            {colegiado.ato_criacao || "Ato de criacao nao cadastrado na base."}
           </div>
+        </article>
+        <article className="detail-panel detail-panel--wide">
+          <h3>Resumo Geral</h3>
+          {resumoGeral.length ? (
+            <div className="status-panel__list">
+              {resumoGeral.map(([label, value]) => (
+                <p key={label}>
+                  <strong>{label}:</strong> {value}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="detail-value">Resumo geral nao cadastrado na base.</div>
+          )}
         </article>
       </section>
 
       <section className="cards-list">
-        <button className="action-tile" onClick={() => setActiveModal("reunioes")} type="button">
-          <HiOutlineDocumentText />
-          <strong>Reunioes</strong>
-          <span>Visualizar reunioes vinculadas a {colegiado.sigla}.</span>
-          <em>Abrir lista de reunioes</em>
-        </button>
         <button className="action-tile" onClick={() => setActiveModal("membros")} type="button">
           <HiOutlineUsers />
           <strong>Membros</strong>
@@ -237,18 +221,11 @@ const ConsultaColegiado = () => {
         </button>
       </section>
 
-      {activeModal === "reunioes" ? (
-        <ModalSection onClose={() => setActiveModal("")} title={`Reunioes de ${colegiado.sigla}`}>
-          <PowerBiTable
-            columns={reunioesColumns}
-            emptyMessage="Nenhuma reuniao encontrada para este colegiado."
-            rows={colegiado.reunioes || []}
-          />
-        </ModalSection>
-      ) : null}
-
       {activeModal === "membros" ? (
-        <ModalSection onClose={() => setActiveModal("")} title={`Membros de ${colegiado.sigla_exibicao || colegiado.sigla}`}>
+        <ModalSection
+          onClose={() => setActiveModal("")}
+          title={`Membros de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
+        >
           <div className="modal-filters">
             <FilterBox label="Busca">
               <input
@@ -316,7 +293,10 @@ const ConsultaColegiado = () => {
       ) : null}
 
       {activeModal === "calendario" ? (
-        <ModalSection onClose={() => setActiveModal("")} title={`Calendario de Reunioes de ${colegiado.sigla}`}>
+        <ModalSection
+          onClose={() => setActiveModal("")}
+          title={`Calendario de Reunioes de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
+        >
           <PowerBiTable
             columns={calendarioColumns}
             emptyMessage="Nenhuma reuniao encontrada para este colegiado."
@@ -326,7 +306,10 @@ const ConsultaColegiado = () => {
       ) : null}
 
       {activeModal === "publicacoes" ? (
-        <ModalSection onClose={() => setActiveModal("")} title={`Publicacoes de ${colegiado.sigla}`}>
+        <ModalSection
+          onClose={() => setActiveModal("")}
+          title={`Publicacoes de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
+        >
           <PowerBiTable
             columns={publicacoesColumns}
             emptyMessage="Nenhuma publicacao encontrada para este colegiado."

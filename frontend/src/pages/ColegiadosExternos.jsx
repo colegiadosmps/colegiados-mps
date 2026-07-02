@@ -9,6 +9,7 @@ import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
 import { api } from "../services/api";
+import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const columns = [
@@ -16,7 +17,7 @@ const columns = [
     key: "nome",
     label: "Colegiado",
     width: "240px",
-    render: (row) => row.sigla_exibicao || row.nome || "-",
+    render: (row) => formatColegiadoDisplayName(row.sigla_exibicao || row.nome || "-"),
   },
   { key: "orgao", label: "Orgao", width: "200px", render: (row) => row.orgao || row.sigla || "-" },
   {
@@ -66,7 +67,8 @@ const ColegiadosExternos = () => {
       const orgao = item.orgao || item.sigla || "Nao informado";
       const matchesColegiado =
         filters.colegiado === ALL_VALUE ||
-        (item.sigla_exibicao || item.nome) === filters.colegiado;
+        (item.sigla_exibicao || item.nome) === filters.colegiado ||
+        formatColegiadoDisplayName(item.sigla_exibicao || item.nome) === filters.colegiado;
       const matchesOrgao = filters.orgao === ALL_VALUE || orgao === filters.orgao;
       return matchesColegiado && matchesOrgao;
     });
@@ -78,7 +80,9 @@ const ColegiadosExternos = () => {
       const label = item.orgao || item.sigla || "Nao informado";
       counts.set(label, (counts.get(label) || 0) + 1);
     });
-    return Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
+    return Array.from(counts.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
   }, [filteredColegiados]);
 
   if (!colegiados) {
@@ -86,7 +90,7 @@ const ColegiadosExternos = () => {
   }
 
   if (!colegiados.length) {
-    return <div className="empty-state">Base de colegiados externos nao encontrada.</div>;
+    return <div className="empty-state">Base de colegiados externos nao encontrada no Google Drive.</div>;
   }
 
   return (
@@ -96,7 +100,11 @@ const ColegiadosExternos = () => {
           <>
             <FilterDropdown
               label="Colegiado Externo"
-              options={buildOptions(colegiados.map((item) => item.sigla_exibicao || item.nome))}
+              options={buildOptions(
+                colegiados.map((item) =>
+                  formatColegiadoDisplayName(item.sigla_exibicao || item.nome),
+                ),
+              )}
               value={filters.colegiado}
               onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
             />

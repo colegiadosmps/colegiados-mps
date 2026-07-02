@@ -1,5 +1,6 @@
 import { all, get, run } from "../database/db.js";
 import { syncGoogleDrive } from "./googleDriveService.js";
+import { formatDateTime } from "../utils/formatters.js";
 
 const buildStatus = (summary) => {
   if (summary.errors.length > 0) {
@@ -49,6 +50,7 @@ export const executarSincronizacao = async () => {
   const summary = await syncGoogleDrive();
   const status = buildStatus(summary);
   const observacao = buildObservacao(summary);
+  const now = formatDateTime(new Date());
   const totalRegistrosMembros = summary.imported_files
     .filter((item) => item.tipo === "Membros")
     .reduce((total, item) => total + item.quantidade_registros, 0);
@@ -67,8 +69,9 @@ export const executarSincronizacao = async () => {
       total_pastas_publicacoes,
       status,
       observacao
-    ) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      now,
       summary.folders_scanned,
       summary.files_found,
       summary.imported_files.length + summary.skipped_files.length + summary.errors.length,

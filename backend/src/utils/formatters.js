@@ -79,5 +79,6 @@ export const formatDateTime = (value) => {
     return null;
   }
 
-  return new Date(value).toISOString();
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 };

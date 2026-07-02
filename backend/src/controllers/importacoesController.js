@@ -32,8 +32,13 @@ export const uploadImportacao = async (request, response) => {
   }
 };
 
-export const obterStatusGoogleDrive = (_request, response) => {
-  response.json(getGoogleDriveStatus());
+export const obterStatusGoogleDrive = async (_request, response) => {
+  try {
+    const status = await getGoogleDriveStatus();
+    response.json(status);
+  } catch (error) {
+    response.status(500).json({ message: error.message });
+  }
 };
 
 export const sincronizarGoogleDrive = async (_request, response) => {
