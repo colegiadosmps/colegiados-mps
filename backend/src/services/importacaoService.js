@@ -115,8 +115,8 @@ const replaceMembers = async ({
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       [
         normalizeText(record.NOME_MEMBRO) || "Nao informado",
-        normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado,
-        normalizeText(record["SIGLA_COLEGIADO: SIGLA_COLEGIADO_PAI"]),
+        normalizeKey(normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado),
+        normalizeKey(normalizeText(record["SIGLA_COLEGIADO: SIGLA_COLEGIADO_PAI"])),
         normalizeText(record.MATRICULA),
         normalizeText(record.EMAIL_INSTITUCIONAL),
         normalizeText(record.TELEFONE_INSTITUCIONAL),
@@ -164,7 +164,7 @@ const replaceMeetings = async ({
       [
         normalizeText(record.ID_REUNIAO),
         normalizeText(record.ID_COLEGIADO),
-        normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado,
+        normalizeKey(normalizeText(record.SIGLA_COLEGIADO) || siglaColegiado),
         normalizeText(record.ID_UNIDADE),
         normalizeDate(record.DATA_REUNIAO),
         normalizeText(record.HORA),
@@ -417,12 +417,12 @@ export const importRootCsvContent = async (content, originalName) => {
   try {
     let result = null;
 
-    if (/^colegiados\.csv$/i.test(originalName)) {
+    if (/^colegiados(?:\.csv)?$/i.test(originalName)) {
       result = await replaceInternalColegiados({
         arquivoOrigem: originalName,
         records,
       });
-    } else if (/^colegiados_externos\.csv$/i.test(originalName)) {
+    } else if (/^colegiados_externos(?:\.csv)?$/i.test(originalName)) {
       result = await replaceExternalColegiados({
         arquivoOrigem: originalName,
         records,

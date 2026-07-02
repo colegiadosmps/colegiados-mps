@@ -88,12 +88,12 @@ const StatusBasePanel = ({ onClose, open }) => {
   };
 
   useEffect(() => {
-    if (!open || !token) {
+    if (!open) {
       return;
     }
 
     loadData();
-  }, [open, token]);
+  }, [open]);
 
   const derived = useMemo(() => {
     if (!payload) {
@@ -102,11 +102,11 @@ const StatusBasePanel = ({ onClose, open }) => {
 
     const internos = payload.colegiados.filter((item) => item.categoria === "Interno");
     const externos = payload.colegiados.filter((item) => item.categoria === "Externo");
-    const csvFiles =
-      payload.detalheUltimaSincronizacao?.arquivos?.map((item) => item.arquivo) || [];
+    const arquivosDetalhados = payload.detalheUltimaSincronizacao?.arquivos || [];
+    const csvFiles = arquivosDetalhados.filter((item) => item.arquivo).map((item) => item.arquivo);
     const foundFolders = Array.from(
       new Set([
-        ...payload.colegiados.map((item) => item.sigla).filter(Boolean),
+        ...payload.colegiados.map((item) => item.chave_pasta || item.sigla).filter(Boolean),
         ...payload.publicacoes.map((item) => item.sigla_colegiado).filter(Boolean),
       ]),
     ).sort();
@@ -118,6 +118,10 @@ const StatusBasePanel = ({ onClose, open }) => {
       totalReunioes: payload.reunioes.length,
       totalPublicacoes: payload.publicacoes.length,
       csvFiles,
+      importedFiles: arquivosDetalhados.filter((item) => item.status === "Importado com sucesso"),
+      ignoredFiles: arquivosDetalhados.filter((item) => item.status === "Ignorado"),
+      warningFiles: arquivosDetalhados.filter((item) => item.status === "Alerta"),
+      errorFiles: arquivosDetalhados.filter((item) => item.status === "Erro"),
       foundFolders,
       alerts: buildAlerts({
         colegiados: payload.colegiados,
@@ -193,11 +197,33 @@ const StatusBasePanel = ({ onClose, open }) => {
           </button>
         </div>
 
+        {!loading && payload ? (
+          <div className="status-panel__content">
+            <section className="status-panel__section">
+              <h3>Fonte de dados</h3>
+              <div className="status-panel__list">
+                <p>
+                  <strong>Pasta principal:</strong>{" "}
+                  {payload.driveStatus.root_folder_id || "Nao informado"}
+                </p>
+                <p>
+                  <strong>Ultima leitura:</strong>{" "}
+                  {formatDateTime(payload.ultimaSincronizacao?.data_sincronizacao)}
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {payload.ultimaSincronizacao?.status || "Sem historico registrado"}
+                </p>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         {!token ? (
           <section className="status-panel__section">
             <h3>Autenticacao administrativa</h3>
             <p className="muted">
-              Informe usuario e senha para consultar o historico e executar a sincronizacao.
+              Informe usuario e senha para executar a sincronizacao manual.
             </p>
 
             <form className="form-grid" onSubmit={handleLogin}>
@@ -248,48 +274,32 @@ const StatusBasePanel = ({ onClose, open }) => {
         {message ? <div className="inline-message">{message}</div> : null}
         {error ? <div className="inline-message danger-text">{error}</div> : null}
 
-        {!loading && token && payload && derived ? (
+        {!loading && payload && derived ? (
           <div className="status-panel__content">
-            <section className="status-panel__section">
-              <div className="section-heading">
-                <div>
-                  <h3>Controle de sincronizacao</h3>
-                  <p>Sincronize manualmente a base do Google Drive com o sistema.</p>
+            {token ? (
+              <section className="status-panel__section">
+                <div className="section-heading">
+                  <div>
+                    <h3>Controle de sincronizacao</h3>
+                    <p>Sincronize manualmente a base do Google Drive com o sistema.</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="status-panel__actions">
-                <button
-                  className="primary-button"
-                  disabled={syncing}
-                  onClick={handleSync}
-                  type="button"
-                >
-                  {syncing ? "Sincronizando..." : "Sincronizar agora"}
-                </button>
-                <button className="text-button" onClick={handleLogout} type="button">
-                  Finalizar sessao
-                </button>
-              </div>
-            </section>
-
-            <section className="status-panel__section">
-              <h3>Fonte de dados</h3>
-              <div className="status-panel__list">
-                <p>
-                  <strong>Pasta principal:</strong>{" "}
-                  {payload.driveStatus.root_folder_id || "Nao informado"}
-                </p>
-                <p>
-                  <strong>Ultima leitura:</strong>{" "}
-                  {formatDateTime(payload.ultimaSincronizacao?.data_sincronizacao)}
-                </p>
-                <p>
-                  <strong>Status:</strong>{" "}
-                  {payload.ultimaSincronizacao?.status || "Sem historico registrado"}
-                </p>
-              </div>
-            </section>
+                <div className="status-panel__actions">
+                  <button
+                    className="primary-button"
+                    disabled={syncing}
+                    onClick={handleSync}
+                    type="button"
+                  >
+                    {syncing ? "Sincronizando..." : "Sincronizar agora"}
+                  </button>
+                  <button className="text-button" onClick={handleLogout} type="button">
+                    Finalizar sessao
+                  </button>
+                </div>
+              </section>
+            ) : null}
 
             <section className="status-panel__section">
               <h3>Resumo de carga</h3>
@@ -327,6 +337,51 @@ const StatusBasePanel = ({ onClose, open }) => {
                 </ul>
               ) : (
                 <p className="muted">Nenhum arquivo CSV identificado.</p>
+              )}
+            </section>
+
+            <section className="status-panel__section">
+              <h3>Arquivos importados</h3>
+              {derived.importedFiles.length ? (
+                <ul className="status-panel__bullet-list">
+                  {derived.importedFiles.map((item) => (
+                    <li key={`${item.arquivo}-${item.id || item.data_base || "ok"}`}>
+                      {item.arquivo} ({item.quantidade_registros} registro(s))
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Nenhum arquivo importado na ultima leitura.</p>
+              )}
+            </section>
+
+            <section className="status-panel__section">
+              <h3>Arquivos ignorados e alertas</h3>
+              {[...derived.ignoredFiles, ...derived.warningFiles].length ? (
+                <ul className="status-panel__bullet-list">
+                  {[...derived.ignoredFiles, ...derived.warningFiles].map((item, index) => (
+                    <li key={`${item.arquivo}-${index}`}>
+                      {item.arquivo}: {item.observacao || item.status}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Nenhum arquivo ignorado.</p>
+              )}
+            </section>
+
+            <section className="status-panel__section">
+              <h3>Erros de sincronizacao</h3>
+              {derived.errorFiles.length ? (
+                <ul className="status-panel__bullet-list">
+                  {derived.errorFiles.map((item, index) => (
+                    <li key={`${item.arquivo}-${index}`}>
+                      {item.arquivo}: {item.observacao || "Erro nao detalhado"}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Nenhum erro registrado na ultima leitura.</p>
               )}
             </section>
 

@@ -4,8 +4,10 @@ import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
+import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
+import { formatBooleanStatus } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const normalizeType = (value) =>
@@ -64,7 +66,10 @@ const ColegiadosInternos = () => {
 
     return colegiados.filter((item) => {
       const matchesTipo = filters.tipo === ALL_VALUE || item.tipo === filters.tipo;
-      const matchesSigla = filters.sigla === ALL_VALUE || item.sigla === filters.sigla;
+      const matchesSigla =
+        filters.sigla === ALL_VALUE ||
+        item.sigla === filters.sigla ||
+        item.sigla_exibicao === filters.sigla;
       return matchesTipo && matchesSigla;
     });
   }, [colegiados, filters]);
@@ -103,7 +108,7 @@ const ColegiadosInternos = () => {
             />
             <FilterDropdown
               label="Sigla Colegiado"
-              options={buildOptions(colegiados.map((item) => item.sigla))}
+              options={buildOptions(colegiados.map((item) => item.sigla_exibicao || item.sigla))}
               value={filters.sigla}
               onChange={(value) => setFilters((current) => ({ ...current, sigla: value }))}
             />
@@ -113,11 +118,19 @@ const ColegiadosInternos = () => {
           </>
         }
         icon={HiOutlineClipboardDocumentList}
-        metricLabel="Colegiados internos"
-        metricValue={filteredColegiados.length}
         subtitle="Base organizada por tipo de colegiado, com acesso rapido aos detalhes de cada estrutura."
         title="Colegiados Internos"
       />
+
+      <section className="content-card">
+        <MetricCard
+          caption="Base oficial carregada"
+          icon={HiOutlineClipboardDocumentList}
+          label="Colegiados internos"
+          tone="blue"
+          value={filteredColegiados.length}
+        />
+      </section>
 
       <section className="type-groups">
         {grouped.map(([tipo, items]) => (
@@ -135,13 +148,13 @@ const ColegiadosInternos = () => {
                 <button
                   className="colegiado-tile"
                   key={item.sigla}
-                  onClick={() => navigate(`/colegiados/${item.sigla}`)}
+                  onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
                   type="button"
                 >
                   <div className="colegiado-tile__header">
-                    <span className="pill">{item.sigla}</span>
+                    <span className="pill">{item.sigla_exibicao || item.sigla}</span>
                     <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
-                      {item.ativo || "Nao informado"}
+                      {formatBooleanStatus(item.ativo)}
                     </span>
                   </div>
                   <h4>{item.nome}</h4>

@@ -6,6 +6,20 @@ const timeOnlyPattern = /^(\d{2}):(\d{2})(?::\d{2})?$/;
 
 const formatDateParts = (year, month, day) => `${day}/${month}/${year}`;
 const formatTimeParts = (hours, minutes) => `${hours}:${minutes}`;
+export const formatBooleanStatus = (value) => {
+  if (!value) {
+    return "Nao informado";
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "sim" || normalized === "ativo") {
+    return "Ativo";
+  }
+  if (normalized === "nao" || normalized === "não" || normalized === "inativo") {
+    return "Inativo";
+  }
+  return value;
+};
 
 export const formatDate = (value) => {
   if (!value) {
@@ -131,6 +145,10 @@ export const formatValueByKey = (key, value) => {
   if (
     key === "data_base" ||
     key === "data_reuniao" ||
+    key === "data_instituicao" ||
+    key === "data_termino" ||
+    key === "inicio" ||
+    key === "fim" ||
     key === "inicio_vigencia" ||
     key === "fim_vigencia"
   ) {

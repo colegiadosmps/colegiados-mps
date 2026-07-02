@@ -169,7 +169,7 @@ const Dashboard = () => {
         />
       </section>
 
-      <section className="charts-grid">
+      <section className="charts-grid charts-grid--dashboard">
         <GraficoBarras
           color="#2b74ff"
           data={derived.charts.internosPorTipo}

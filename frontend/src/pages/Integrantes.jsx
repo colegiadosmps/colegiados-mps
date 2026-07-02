@@ -142,12 +142,12 @@ const Integrantes = () => {
         <GraficoBarras
           data={aggregateBy(filteredMembros, "tipo_vinculo")}
           title="Tipo de Vinculo"
-          color="#12689a"
+          color="#37b45b"
         />
         <GraficoBarras
           data={aggregateBy(filteredMembros, "papel")}
           title="Papel"
-          color="#0b5f8f"
+          color="#7a45e6"
         />
       </section>
     </div>

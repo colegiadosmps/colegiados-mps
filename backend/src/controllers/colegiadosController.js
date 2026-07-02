@@ -1,4 +1,5 @@
 import { all, get } from "../database/db.js";
+import { normalizeKey } from "../utils/formatters.js";
 
 export const listarColegiados = async (_request, response) => {
   try {
@@ -14,6 +15,15 @@ export const listarColegiados = async (_request, response) => {
     } else if (_request.query.tipo) {
       conditions.push("c.tipo = ?");
       params.push(_request.query.tipo);
+    }
+
+    if (_request.query.sigla) {
+      conditions.push("(c.sigla = ? OR c.chave_pasta = ? OR c.sigla_exibicao = ?)");
+      params.push(
+        normalizeKey(_request.query.sigla),
+        normalizeKey(_request.query.sigla),
+        _request.query.sigla,
+      );
     }
 
     const whereClause = conditions.length
@@ -53,7 +63,7 @@ export const listarColegiados = async (_request, response) => {
         GROUP BY sigla_colegiado
       ) p ON p.sigla_colegiado = c.sigla
       ${whereClause}
-      ORDER BY c.sigla`,
+      ORDER BY COALESCE(c.sigla_exibicao, c.sigla)`,
       params,
     );
 
@@ -65,6 +75,7 @@ export const listarColegiados = async (_request, response) => {
 
 export const obterColegiadoPorSigla = async (request, response) => {
   try {
+    const requestedKey = normalizeKey(request.params.sigla);
     const colegiado = await get(
       `SELECT
         c.*,
@@ -97,8 +108,8 @@ export const obterColegiadoPorSigla = async (request, response) => {
         FROM reunioes
         GROUP BY sigla_colegiado
       ) r ON r.sigla_colegiado = c.sigla
-      WHERE c.sigla = ?`,
-      [request.params.sigla.toUpperCase()],
+      WHERE c.sigla = ? OR c.chave_pasta = ? OR c.sigla_exibicao = ?`,
+      [requestedKey, requestedKey, request.params.sigla],
     );
 
     if (!colegiado) {

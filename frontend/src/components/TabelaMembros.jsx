@@ -1,4 +1,5 @@
 import PowerBiTable from "./PowerBiTable";
+import { formatBooleanStatus } from "../services/formatters";
 
 const columns = [
   { key: "nome_membro", label: "Nome", width: "220px" },
@@ -19,7 +20,7 @@ const columns = [
     width: "120px",
     render: (membro) => (
       <span className={`badge ${membro.ativo === "Sim" ? "success" : "danger"}`}>
-        {membro.ativo || "-"}
+        {formatBooleanStatus(membro.ativo)}
       </span>
     ),
   },
@@ -29,6 +30,7 @@ const TabelaMembros = ({ membros }) => (
   <PowerBiTable
     columns={columns}
     emptyMessage="Nenhum integrante encontrado para os filtros selecionados."
+    rowsPerPageOptions={[10, 25, 50]}
     rows={membros}
   />
 );

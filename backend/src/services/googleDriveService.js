@@ -2,11 +2,14 @@ import crypto from "node:crypto";
 import { get, run } from "../database/db.js";
 import { importCsvContent, importRootCsvContent } from "./importacaoService.js";
 import { parseFileName } from "./fileNameService.js";
+import { normalizeKey } from "../utils/formatters.js";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
 const DEFAULT_PUBLICATIONS_SUFFIX = "_Publicacoes";
+const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
+const GOOGLE_SHEETS_MIME = "application/vnd.google-apps.spreadsheet";
 
 const sanitizePrivateKey = (value) =>
   value
@@ -157,9 +160,18 @@ const createDriveClient = async () => {
     return payload.files || [];
   };
 
-  const downloadFile = async (fileId) => {
-    const url = new URL(`${DRIVE_FILES_ENDPOINT}/${fileId}`);
-    url.searchParams.set("alt", "media");
+  const downloadFile = async ({ fileId, mimeType }) => {
+    const url =
+      mimeType === GOOGLE_SHEETS_MIME
+        ? new URL(`${DRIVE_FILES_ENDPOINT}/${fileId}/export`)
+        : new URL(`${DRIVE_FILES_ENDPOINT}/${fileId}`);
+
+    if (mimeType === GOOGLE_SHEETS_MIME) {
+      url.searchParams.set("mimeType", "text/csv");
+    } else {
+      url.searchParams.set("alt", "media");
+    }
+
     url.searchParams.set("supportsAllDrives", "true");
 
     const response = await fetch(url, {
@@ -223,6 +235,24 @@ const upsertPublicationFolder = async ({
   return "created";
 };
 
+const isSupportedRootCsv = (item) =>
+  /^(Colegiados(?:\.csv)?|Colegiados_Externos(?:\.csv)?)$/i.test(item.name) &&
+  (item.mimeType === "text/csv" || item.mimeType === GOOGLE_SHEETS_MIME);
+
+const isCsvCandidate = (item) =>
+  item.mimeType === "text/csv" ||
+  item.mimeType === GOOGLE_SHEETS_MIME ||
+  item.name.toLowerCase().endsWith(".csv");
+
+const findPublicationFolders = (items, folderName, suffix) => {
+  const expected = normalizeKey(`${folderName}${suffix}`);
+  return items.filter(
+    (item) =>
+      item.mimeType === GOOGLE_FOLDER_MIME &&
+      normalizeKey(item.name) === expected,
+  );
+};
+
 export const getGoogleDriveStatus = () => {
   const config = getConfig();
 
@@ -244,13 +274,12 @@ export const syncGoogleDrive = async () => {
     parentId: config.rootFolderId,
     fields: "files(id,name,mimeType,webViewLink)",
   });
+
   const colegiadoFolders = rootItems.filter(
-    (item) => item.mimeType === "application/vnd.google-apps.folder",
+    (item) => item.mimeType === GOOGLE_FOLDER_MIME,
   );
   const rootCsvFiles = rootItems.filter(
-    (item) =>
-      item.mimeType !== "application/vnd.google-apps.folder" &&
-      /^(Colegiados\.csv|Colegiados_Externos\.csv)$/i.test(item.name),
+    (item) => item.mimeType !== GOOGLE_FOLDER_MIME && isSupportedRootCsv(item),
   );
 
   const summary = {
@@ -260,20 +289,37 @@ export const syncGoogleDrive = async () => {
       id: rootFolder.id,
       name: rootFolder.name,
     },
+    root_files_found: rootCsvFiles.map((item) => ({
+      id: item.id,
+      name: item.name,
+      mimeType: item.mimeType,
+    })),
     imported_files: [],
     publication_folders: [],
     skipped_files: [],
     errors: [],
+    warnings: [],
   };
 
   for (const csvFile of rootCsvFiles) {
     try {
-      const content = await drive.downloadFile(csvFile.id);
+      const content = await drive.downloadFile({
+        fileId: csvFile.id,
+        mimeType: csvFile.mimeType,
+      });
       const result = await importRootCsvContent(content, csvFile.name);
       summary.imported_files.push({
         ...result,
         drive_file_id: csvFile.id,
+        source_mime_type: csvFile.mimeType,
       });
+
+      if (csvFile.mimeType === GOOGLE_SHEETS_MIME) {
+        summary.warnings.push({
+          file: csvFile.name,
+          reason: "Arquivo Google Sheets detectado e exportado como CSV.",
+        });
+      }
     } catch (error) {
       summary.errors.push({
         file: csvFile.name,
@@ -281,6 +327,20 @@ export const syncGoogleDrive = async () => {
         message: error.message,
       });
     }
+  }
+
+  if (!rootCsvFiles.some((item) => /^colegiados(?:\.csv)?$/i.test(item.name))) {
+    summary.warnings.push({
+      file: "Colegiados.csv",
+      reason: "Colegiados.csv nao encontrado.",
+    });
+  }
+
+  if (!rootCsvFiles.some((item) => /^colegiados_externos(?:\.csv)?$/i.test(item.name))) {
+    summary.warnings.push({
+      file: "Colegiados_Externos.csv",
+      reason: "Colegiados_Externos.csv nao encontrado.",
+    });
   }
 
   if (colegiadoFolders.length === 0) {
@@ -292,7 +352,7 @@ export const syncGoogleDrive = async () => {
   }
 
   for (const colegiadoFolder of colegiadoFolders) {
-    const siglaColegiado = colegiadoFolder.name.trim().toUpperCase();
+    const folderKey = normalizeKey(colegiadoFolder.name);
 
     try {
       const folderItems = await drive.listFiles({
@@ -301,32 +361,30 @@ export const syncGoogleDrive = async () => {
       });
 
       const csvFiles = folderItems
-        .filter((item) => item.mimeType !== "application/vnd.google-apps.folder")
-        .filter((item) => item.name.toLowerCase().endsWith(".csv"));
+        .filter((item) => item.mimeType !== GOOGLE_FOLDER_MIME)
+        .filter(isCsvCandidate);
       summary.files_found += csvFiles.length;
 
-      const publicationFolders = folderItems.filter(
-        (item) =>
-          item.mimeType === "application/vnd.google-apps.folder" &&
-          item.name === `${siglaColegiado}${config.publicationsSuffix}`,
+      const publicationFolders = findPublicationFolders(
+        folderItems,
+        colegiadoFolder.name,
+        config.publicationsSuffix,
       );
-
       const latestByType = new Map();
 
       for (const csvFile of csvFiles) {
         try {
           const fileInfo = parseFileName(csvFile.name);
 
-          if (fileInfo.siglaColegiado !== siglaColegiado) {
+          if (fileInfo.siglaColegiado !== folderKey) {
             summary.skipped_files.push({
               file: csvFile.name,
-              reason: `Sigla do arquivo (${fileInfo.siglaColegiado}) diferente da pasta (${siglaColegiado}).`,
+              reason: `Sigla do arquivo (${fileInfo.siglaColegiado}) diferente da pasta (${folderKey}).`,
             });
             continue;
           }
 
           const current = latestByType.get(fileInfo.tipo);
-
           if (!current || fileInfo.dataBase > current.fileInfo.dataBase) {
             latestByType.set(fileInfo.tipo, { csvFile, fileInfo });
           }
@@ -340,12 +398,23 @@ export const syncGoogleDrive = async () => {
 
       for (const [, { csvFile }] of latestByType) {
         try {
-          const content = await drive.downloadFile(csvFile.id);
+          const content = await drive.downloadFile({
+            fileId: csvFile.id,
+            mimeType: csvFile.mimeType,
+          });
           const result = await importCsvContent(content, csvFile.name);
           summary.imported_files.push({
             ...result,
             drive_file_id: csvFile.id,
+            source_mime_type: csvFile.mimeType,
           });
+
+          if (csvFile.mimeType === GOOGLE_SHEETS_MIME) {
+            summary.warnings.push({
+              file: csvFile.name,
+              reason: "Arquivo Google Sheets detectado e exportado como CSV.",
+            });
+          }
         } catch (error) {
           summary.errors.push({
             file: csvFile.name,
@@ -357,7 +426,7 @@ export const syncGoogleDrive = async () => {
 
       for (const publicationFolder of publicationFolders) {
         const action = await upsertPublicationFolder({
-          siglaColegiado,
+          siglaColegiado: folderKey,
           nomePasta: publicationFolder.name,
           linkPasta: publicationFolder.webViewLink || "",
           driveFolderId: publicationFolder.id,
@@ -365,10 +434,17 @@ export const syncGoogleDrive = async () => {
         });
 
         summary.publication_folders.push({
-          sigla_colegiado: siglaColegiado,
+          sigla_colegiado: folderKey,
           nome_pasta: publicationFolder.name,
           drive_folder_id: publicationFolder.id,
           action,
+        });
+      }
+
+      if (!publicationFolders.length) {
+        summary.warnings.push({
+          file: colegiadoFolder.name,
+          reason: "Pasta correspondente ao colegiado nao localizada.",
         });
       }
     } catch (error) {

@@ -6,6 +6,10 @@ const buildStatus = (summary) => {
     return "Concluida com ressalvas";
   }
 
+  if (summary.warnings.length > 0) {
+    return "Concluida com alertas";
+  }
+
   if (summary.folders_scanned === 0) {
     return "Sem pastas encontradas";
   }
@@ -32,6 +36,10 @@ const buildObservacao = (summary) => {
 
   if (summary.errors.length > 0) {
     parts.push(`${summary.errors.length} erro(s) durante a sincronizacao.`);
+  }
+
+  if (summary.warnings.length > 0) {
+    parts.push(`${summary.warnings.length} alerta(s) identificado(s) na leitura.`);
   }
 
   return parts.join(" ") || null;
@@ -63,7 +71,7 @@ export const executarSincronizacao = async () => {
     [
       summary.folders_scanned,
       summary.files_found,
-      summary.imported_files.length,
+      summary.imported_files.length + summary.skipped_files.length + summary.errors.length,
       totalRegistrosMembros,
       totalRegistrosReunioes,
       summary.publication_folders.length,
@@ -136,6 +144,23 @@ export const executarSincronizacao = async () => {
         (item.file || item.folder || "N/A").split("_")[0] || "N/A",
         item.message,
       ],
+    );
+  }
+
+  for (const item of summary.warnings) {
+    await run(
+      `INSERT INTO sincronizacao_arquivos (
+        sincronizacao_id,
+        arquivo,
+        drive_file_id,
+        tipo,
+        sigla_colegiado,
+        data_base,
+        quantidade_registros,
+        status,
+        observacao
+      ) VALUES (?, ?, NULL, 'Alerta', 'BASE', NULL, 0, 'Alerta', ?)`,
+      [sincronizacao.lastID, item.file || "Alerta", item.reason],
     );
   }
 

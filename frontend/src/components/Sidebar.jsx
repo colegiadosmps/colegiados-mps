@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
+  HiOutlineArrowPath,
   HiOutlineBriefcase,
   HiOutlineClipboardDocumentList,
+  HiOutlineClock,
   HiOutlineHome,
   HiOutlineUsers,
 } from "react-icons/hi2";
@@ -55,8 +57,18 @@ const Sidebar = ({ open, onClose }) => {
       </nav>
 
         <div className="sidebar-footer">
-          <span>Dados atualizados em</span>
-          <strong>{ultimaAtualizacao ? formatDateTime(ultimaAtualizacao) : "Sem sincronizacao"}</strong>
+          <div className="sidebar-footer__icon">
+            <HiOutlineClock />
+          </div>
+          <div className="sidebar-footer__content">
+            <span>Dados atualizados em</span>
+            <strong>
+              {ultimaAtualizacao ? formatDateTime(ultimaAtualizacao) : "Sem sincronizacao"}
+            </strong>
+          </div>
+          <div className="sidebar-footer__refresh" aria-hidden="true">
+            <HiOutlineArrowPath />
+          </div>
         </div>
       </aside>
 

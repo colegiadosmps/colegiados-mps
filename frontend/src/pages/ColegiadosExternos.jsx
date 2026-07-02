@@ -12,9 +12,19 @@ import { api } from "../services/api";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
 const columns = [
-  { key: "nome", label: "Colegiado", width: "240px" },
+  {
+    key: "nome",
+    label: "Colegiado",
+    width: "240px",
+    render: (row) => row.sigla_exibicao || row.nome || "-",
+  },
   { key: "orgao", label: "Orgao", width: "200px", render: (row) => row.orgao || row.sigla || "-" },
-  { key: "dispositivo", label: "Dispositivo Legal", width: "180px", render: () => "-" },
+  {
+    key: "dispositivo_legal",
+    label: "Dispositivo Legal",
+    width: "220px",
+    className: "cell-wrap",
+  },
   {
     key: "descricao",
     label: "Natureza, Competencia ou Finalidade",
@@ -55,7 +65,8 @@ const ColegiadosExternos = () => {
     return colegiados.filter((item) => {
       const orgao = item.orgao || item.sigla || "Nao informado";
       const matchesColegiado =
-        filters.colegiado === ALL_VALUE || item.nome === filters.colegiado;
+        filters.colegiado === ALL_VALUE ||
+        (item.sigla_exibicao || item.nome) === filters.colegiado;
       const matchesOrgao = filters.orgao === ALL_VALUE || orgao === filters.orgao;
       return matchesColegiado && matchesOrgao;
     });
@@ -85,7 +96,7 @@ const ColegiadosExternos = () => {
           <>
             <FilterDropdown
               label="Colegiado Externo"
-              options={buildOptions(colegiados.map((item) => item.nome))}
+              options={buildOptions(colegiados.map((item) => item.sigla_exibicao || item.nome))}
               value={filters.colegiado}
               onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
             />

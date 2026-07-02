@@ -1,6 +1,11 @@
+.powerbi-table-wrapper {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .powerbi-table-shell {
   overflow: auto;
-  border-radius: 18px;
+  border-radius: 22px;
   border: 1px solid rgba(10, 45, 94, 0.08);
   background: #fff;
 }
@@ -17,7 +22,7 @@
 }
 
 .powerbi-table thead {
-  background: #fff;
+  background: #ffffff;
 }
 
 .powerbi-table th {
@@ -25,16 +30,29 @@
   font-size: 0.86rem;
   font-weight: 700;
   text-align: left;
-  padding: 0.95rem 1rem;
+  padding: 1rem 1rem;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 1;
   border-bottom: 1px solid rgba(10, 45, 94, 0.08);
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.powerbi-table__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.powerbi-table__head small {
+  color: #6b86a8;
+  font-size: 0.72rem;
 }
 
 .powerbi-table td {
-  padding: 0.95rem 1rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid rgba(10, 45, 94, 0.08);
   vertical-align: top;
   word-break: break-word;
@@ -60,4 +78,63 @@
 .table-caption {
   color: var(--text-soft);
   margin-bottom: 0.75rem;
+}
+
+.powerbi-table__footer,
+.powerbi-table__footer-actions,
+.powerbi-table__pagination,
+.powerbi-table__rows {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.powerbi-table__footer {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.powerbi-table__footer-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.powerbi-table__page-group,
+.powerbi-table__page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.powerbi-table__rows {
+  color: var(--text-soft);
+}
+
+.powerbi-table__rows select {
+  width: auto;
+  min-width: 84px;
+  min-height: 40px;
+  padding: 0.55rem 0.75rem;
+}
+
+.powerbi-table__gap {
+  color: #8aa0b9;
+}
+
+.powerbi-table__page-button {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(10, 45, 94, 0.08);
+  background: #fff;
+  color: var(--bg-dark);
+}
+
+.powerbi-table__page-button.is-active {
+  background: linear-gradient(135deg, #1268ff, #08388f);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 10px 18px rgba(13, 94, 244, 0.18);
 }
