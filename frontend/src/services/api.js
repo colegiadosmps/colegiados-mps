@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3333").replace(
+  /\/+$/,
+  "",
+);
 
 const request = async (path, options = {}) => {
   const response = await fetch(`${API_URL}${path}`, {

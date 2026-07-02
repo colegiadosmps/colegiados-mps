@@ -18,41 +18,55 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3333;
 const schemaPath = path.resolve(process.cwd(), "src/database/schema.sql");
-const normalizeOrigin = (value) => value.replace(/\/+$/, "");
+
+const normalizeOrigin = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  return String(value).trim().replace(/\/+$/, "");
+};
+
 const configuredOrigins = [
   process.env.FRONTEND_URL,
   process.env.FRONTEND_URLS,
+  "https://colegiados-mps-1.onrender.com",
+  "https://colegiadosmps.netlify.app",
   "http://localhost:5173",
+  "http://localhost:3000",
 ]
   .filter(Boolean)
   .flatMap((value) => value.split(","))
-  .map((value) => value.trim())
-  .filter(Boolean)
   .map(normalizeOrigin);
 
 const allowedOrigins = new Set(configuredOrigins);
 const isNetlifyOrigin = (origin) =>
   /^https:\/\/[a-z0-9-]+\.netlify\.app$/i.test(origin);
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      const normalizedOrigin = origin ? normalizeOrigin(origin) : origin;
+const corsOptions = {
+  origin(origin, callback) {
+    const normalizedOrigin = normalizeOrigin(origin);
 
-      if (
-        !normalizedOrigin ||
-        allowedOrigins.has(normalizedOrigin) ||
-        isNetlifyOrigin(normalizedOrigin)
-      ) {
-        callback(null, true);
-        return;
-      }
+    if (
+      !normalizedOrigin ||
+      allowedOrigins.has(normalizedOrigin) ||
+      isNetlifyOrigin(normalizedOrigin)
+    ) {
+      callback(null, true);
+      return;
+    }
 
-      callback(new Error("Origem nao permitida pelo CORS."));
-    },
-    optionsSuccessStatus: 204,
-  }),
-);
+    console.warn(`Origem bloqueada pelo CORS: ${origin}`);
+    callback(new Error(`Origem nao permitida pelo CORS: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 
