@@ -44,6 +44,8 @@
 .chart-card__body {
   padding: 0.85rem 0.95rem 0.9rem;
   background: var(--bg-card);
+  display: flex;
+  align-items: stretch;
 }
 
 .chart-card__body--interactive {
@@ -62,6 +64,13 @@
 
 .chart-area--horizontal {
   min-height: 220px;
+  width: 100%;
+}
+
+.chart-area--scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.3rem;
 }
 
 .chart-legend {

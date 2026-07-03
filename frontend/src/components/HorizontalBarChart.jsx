@@ -72,31 +72,46 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
     const lineHeight = fontSize + 5;
     const wrappedLabels = rows.map((item) => wrapLabel(item.label, maxCharsPerLine));
     const totalLineCount = wrappedLabels.reduce((sum, lines) => sum + lines.length, 0);
+    const longestLineLength = wrappedLabels.reduce(
+      (maxLength, lines) => Math.max(maxLength, ...lines.map((line) => line.length), 0),
+      0,
+    );
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
       mode === "expanded" ? 420 : mobileMode ? 220 : 260,
       totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
+    const estimatedLabelWidth = Math.round(longestLineLength * (fontSize * 0.58));
+    const yAxisWidth = mobileMode
+      ? Math.min(150, Math.max(92, estimatedLabelWidth + 18))
+      : mode === "expanded"
+        ? Math.min(260, Math.max(140, estimatedLabelWidth + 26))
+        : Math.min(200, Math.max(110, estimatedLabelWidth + 20));
 
     return {
       chartHeight,
       fontSize,
       maxCharsPerLine,
-      yAxisWidth: mobileMode ? 128 : mode === "expanded" ? 240 : 170,
+      wrapperClassName:
+        mode === "expanded" && rows.length > 10
+          ? "chart-area chart-area--horizontal chart-area--scrollable"
+          : "chart-area chart-area--horizontal",
+      yAxisWidth,
       margin:
         mode === "expanded"
-          ? { top: 8, right: 40, left: 18, bottom: 8 }
+          ? { top: 8, right: 42, left: 8, bottom: 8 }
           : mobileMode
-            ? { top: 4, right: 18, left: 2, bottom: 4 }
-            : { top: 6, right: 28, left: 6, bottom: 6 },
+            ? { top: 4, right: 16, left: 0, bottom: 4 }
+            : { top: 6, right: 24, left: 0, bottom: 6 },
     };
   };
 
   const renderChart = (rows, mode = "compact") => {
-    const { chartHeight, fontSize, margin, maxCharsPerLine, yAxisWidth } = buildChartMetrics(rows, mode);
+    const { chartHeight, fontSize, margin, maxCharsPerLine, wrapperClassName, yAxisWidth } =
+      buildChartMetrics(rows, mode);
 
     return (
-      <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
+      <div className={wrapperClassName} style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={rows} layout="vertical" margin={margin}>
             <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
