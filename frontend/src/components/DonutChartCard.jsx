@@ -77,7 +77,11 @@ const DonutChartCard = ({ colors, data, title }) => {
         {renderChart()}
       </ChartCard>
       {expanded ? (
-        <ExpandedChartModal onClose={() => setExpanded(false)} title={title}>
+        <ExpandedChartModal
+          bodyClassName="chart-modal__body--no-scroll"
+          onClose={() => setExpanded(false)}
+          title={title}
+        >
           {renderChart("expanded")}
         </ExpandedChartModal>
       ) : null}

@@ -55,6 +55,7 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
   const [isMobile, setIsMobile] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const modalData = expandedData?.length ? expandedData : data;
+  const shouldScrollExpanded = modalData.length > 10;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -78,7 +79,13 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
     );
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
-      mode === "expanded" ? rows.length * 44 + 120 : mobileMode ? 170 : 150,
+      mode === "expanded"
+        ? shouldScrollExpanded
+          ? rows.length * 44 + 120
+          : rows.length * 40 + 92
+        : mobileMode
+          ? 170
+          : 150,
       totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
     const estimatedLabelWidth = Math.round(longestLineLength * (fontSize * 0.58));
@@ -152,7 +159,11 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
         {renderChart(data)}
       </ChartCard>
       {expanded ? (
-        <ExpandedChartModal onClose={() => setExpanded(false)} title={title}>
+        <ExpandedChartModal
+          bodyClassName={shouldScrollExpanded ? "chart-modal__body--scroll" : "chart-modal__body--no-scroll"}
+          onClose={() => setExpanded(false)}
+          title={title}
+        >
           {renderChart(modalData, "expanded")}
         </ExpandedChartModal>
       ) : null}

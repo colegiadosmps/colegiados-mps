@@ -1,4 +1,4 @@
-const ExpandedChartModal = ({ children, onClose, title }) => (
+const ExpandedChartModal = ({ bodyClassName = "", children, onClose, title }) => (
   <>
     <button
       aria-label="Fechar visualizacao expandida"
@@ -13,7 +13,7 @@ const ExpandedChartModal = ({ children, onClose, title }) => (
           Fechar
         </button>
       </div>
-      <div className="app-modal__body">{children}</div>
+      <div className={`app-modal__body ${bodyClassName}`.trim()}>{children}</div>
     </section>
   </>
 );
