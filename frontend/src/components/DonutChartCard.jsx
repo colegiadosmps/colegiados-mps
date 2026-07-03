@@ -8,9 +8,14 @@ const DonutChartCard = ({ colors, data, title }) => {
   const normalizedData = data.filter((item) => item.value > 0);
   const chartData = normalizedData.length ? normalizedData : [{ label: "Sem dados", value: 1 }];
   const total = normalizedData.reduce((sum, item) => sum + item.value, 0);
+  const hasData = normalizedData.length > 0;
 
   const renderChart = (mode = "compact") => (
-    <div className={`donut-card ${mode === "expanded" ? "donut-card--expanded" : ""}`.trim()}>
+    <div
+      className={`donut-card ${mode === "expanded" ? "donut-card--expanded" : ""} ${
+        !hasData ? "donut-card--empty" : ""
+      }`.trim()}
+    >
       <div className="donut-card__chart">
         <ResponsiveContainer width="100%" height={mode === "expanded" ? 320 : 240}>
           <PieChart>
@@ -39,29 +44,32 @@ const DonutChartCard = ({ colors, data, title }) => {
           <span>{total ? "Total" : "Sem dados"}</span>
         </div>
       </div>
-      <div className="donut-card__legend">
-        {data.map((item, index) => {
-          const percentage = total ? ((item.value / total) * 100).toFixed(1).replace(".", ",") : "0,0";
+      {hasData ? (
+        <div className="donut-card__legend">
+          {data.map((item, index) => {
+            const percentage = total ? ((item.value / total) * 100).toFixed(1).replace(".", ",") : "0,0";
 
-          return (
-            <div className="donut-card__legend-item" key={item.label}>
-              <span className="donut-card__legend-label">
-                <i style={{ background: colors[index % colors.length] }} />
-                {item.label}
-              </span>
-              <strong>
-                {item.value} ({percentage}%)
-              </strong>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div className="donut-card__legend-item" key={item.label}>
+                <span className="donut-card__legend-label">
+                  <i style={{ background: colors[index % colors.length] }} />
+                  {item.label}
+                </span>
+                <strong>
+                  {item.value} ({percentage}%)
+                </strong>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 
   return (
     <>
       <ChartCard
+        bodyClassName="chart-card__body--chart chart-card__body--donut"
         interactive
         onBodyClick={() => setExpanded(true)}
         title={title}

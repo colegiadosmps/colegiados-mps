@@ -78,15 +78,15 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
     );
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
-      mode === "expanded" ? 420 : mobileMode ? 220 : 260,
+      mode === "expanded" ? 420 : mobileMode ? 190 : 210,
       totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
     const estimatedLabelWidth = Math.round(longestLineLength * (fontSize * 0.58));
     const yAxisWidth = mobileMode
-      ? Math.min(150, Math.max(92, estimatedLabelWidth + 18))
+      ? Math.min(138, Math.max(88, estimatedLabelWidth + 14))
       : mode === "expanded"
         ? Math.min(260, Math.max(140, estimatedLabelWidth + 26))
-        : Math.min(200, Math.max(110, estimatedLabelWidth + 20));
+        : Math.min(150, Math.max(96, estimatedLabelWidth + 14));
 
     return {
       chartHeight,
@@ -146,6 +146,7 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
   return (
     <>
       <ChartCard
+        bodyClassName="chart-card__body--chart chart-card__body--horizontal-chart"
         interactive
         onBodyClick={() => setExpanded(true)}
         title={title}

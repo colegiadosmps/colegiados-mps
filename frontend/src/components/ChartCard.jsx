@@ -1,11 +1,18 @@
-const ChartCard = ({ actions, children, interactive = false, onBodyClick, title }) => (
+const ChartCard = ({
+  actions,
+  bodyClassName = "",
+  children,
+  interactive = false,
+  onBodyClick,
+  title,
+}) => (
   <article className={`chart-card ${interactive ? "chart-card--interactive" : ""}`.trim()}>
     <div className="chart-card__header">
       <h3>{title}</h3>
       {actions}
     </div>
     <div
-      className={`chart-card__body ${interactive ? "chart-card__body--interactive" : ""}`.trim()}
+      className={`chart-card__body ${interactive ? "chart-card__body--interactive" : ""} ${bodyClassName}`.trim()}
       onClick={interactive ? onBodyClick : undefined}
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
