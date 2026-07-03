@@ -1,5 +1,5 @@
 const ChartCard = ({ actions, children, interactive = false, onBodyClick, title }) => (
-  <article className="chart-card">
+  <article className={`chart-card ${interactive ? "chart-card--interactive" : ""}`.trim()}>
     <div className="chart-card__header">
       <h3>{title}</h3>
       {actions}

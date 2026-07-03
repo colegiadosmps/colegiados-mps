@@ -81,7 +81,6 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
       chartHeight,
       fontSize,
       maxCharsPerLine,
-      wrapperClassName: mode === "expanded" ? "chart-scroll-region chart-scroll-region--expanded" : "chart-scroll-region",
       yAxisWidth: mobileMode ? 128 : mode === "expanded" ? 240 : 170,
       margin:
         mode === "expanded"
@@ -93,40 +92,37 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
   };
 
   const renderChart = (mode = "compact") => {
-    const { chartHeight, fontSize, margin, maxCharsPerLine, wrapperClassName, yAxisWidth } =
-      buildChartMetrics(mode);
+    const { chartHeight, fontSize, margin, maxCharsPerLine, yAxisWidth } = buildChartMetrics(mode);
 
     return (
-      <div className={wrapperClassName}>
-        <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={data} layout="vertical" margin={margin}>
-              <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
-              <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize }} />
-              <YAxis
-                dataKey="label"
-                type="category"
-                tick={<WrappedYAxisTick fontSize={fontSize} maxCharsPerLine={maxCharsPerLine} />}
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                width={yAxisWidth}
+      <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart data={data} layout="vertical" margin={margin}>
+            <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
+            <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize }} />
+            <YAxis
+              dataKey="label"
+              type="category"
+              tick={<WrappedYAxisTick fontSize={fontSize} maxCharsPerLine={maxCharsPerLine} />}
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+              width={yAxisWidth}
+            />
+            <Tooltip
+              contentStyle={{ borderRadius: "14px", borderColor: "rgba(10, 45, 94, 0.1)" }}
+              cursor={{ fill: "rgba(11, 95, 143, 0.08)" }}
+            />
+            <Bar dataKey="value" fill={color} maxBarSize={mode === "expanded" ? 34 : 30} radius={[0, 10, 10, 0]}>
+              <LabelList
+                dataKey="value"
+                fill="#0b2f4f"
+                fontSize={fontSize}
+                position="right"
               />
-              <Tooltip
-                contentStyle={{ borderRadius: "14px", borderColor: "rgba(10, 45, 94, 0.1)" }}
-                cursor={{ fill: "rgba(11, 95, 143, 0.08)" }}
-              />
-              <Bar dataKey="value" fill={color} maxBarSize={mode === "expanded" ? 34 : 30} radius={[0, 10, 10, 0]}>
-                <LabelList
-                  dataKey="value"
-                  fill="#0b2f4f"
-                  fontSize={fontSize}
-                  position="right"
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     );
   };
@@ -134,11 +130,6 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
   return (
     <>
       <ChartCard
-        actions={
-          <button className="chart-card__action" onClick={() => setExpanded(true)} type="button">
-            Expandir
-          </button>
-        }
         interactive
         onBodyClick={() => setExpanded(true)}
         title={title}

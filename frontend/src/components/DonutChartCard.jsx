@@ -62,11 +62,6 @@ const DonutChartCard = ({ colors, data, title }) => {
   return (
     <>
       <ChartCard
-        actions={
-          <button className="chart-card__action" onClick={() => setExpanded(true)} type="button">
-            Expandir
-          </button>
-        }
         interactive
         onBodyClick={() => setExpanded(true)}
         title={title}
@@ -75,7 +70,7 @@ const DonutChartCard = ({ colors, data, title }) => {
       </ChartCard>
       {expanded ? (
         <ExpandedChartModal onClose={() => setExpanded(false)} title={title}>
-          <div className="chart-modal__body">{renderChart("expanded")}</div>
+          {renderChart("expanded")}
         </ExpandedChartModal>
       ) : null}
     </>
