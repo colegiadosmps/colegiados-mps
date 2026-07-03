@@ -78,7 +78,7 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
     );
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
-      mode === "expanded" ? 420 : mobileMode ? 170 : 176,
+      mode === "expanded" ? rows.length * 44 + 120 : mobileMode ? 170 : 150,
       totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
     const estimatedLabelWidth = Math.round(longestLineLength * (fontSize * 0.58));
@@ -92,10 +92,6 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
       chartHeight,
       fontSize,
       maxCharsPerLine,
-      wrapperClassName:
-        mode === "expanded" && rows.length > 10
-          ? "chart-area chart-area--horizontal chart-area--scrollable"
-          : "chart-area chart-area--horizontal",
       yAxisWidth,
       margin:
         mode === "expanded"
@@ -107,11 +103,13 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
   };
 
   const renderChart = (rows, mode = "compact") => {
-    const { chartHeight, fontSize, margin, maxCharsPerLine, wrapperClassName, yAxisWidth } =
-      buildChartMetrics(rows, mode);
+    const { chartHeight, fontSize, margin, maxCharsPerLine, yAxisWidth } = buildChartMetrics(
+      rows,
+      mode,
+    );
 
     return (
-      <div className={wrapperClassName} style={{ height: chartHeight }}>
+      <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={rows} layout="vertical" margin={margin}>
             <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
