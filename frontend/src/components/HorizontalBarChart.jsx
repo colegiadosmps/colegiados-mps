@@ -78,7 +78,7 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
     );
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
-      mode === "expanded" ? 420 : mobileMode ? 190 : 210,
+      mode === "expanded" ? 420 : mobileMode ? 170 : 176,
       totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
     const estimatedLabelWidth = Math.round(longestLineLength * (fontSize * 0.58));

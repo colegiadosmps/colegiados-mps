@@ -2,6 +2,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  align-items: start;
 }
 
 .charts-grid--dashboard {
@@ -107,8 +108,8 @@
 
 .donut-card {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(220px, 1fr);
-  gap: 1.1rem 1.4rem;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 1rem 1.1rem;
   align-items: center;
   width: 100%;
 }
@@ -116,7 +117,7 @@
 .donut-card__chart {
   position: relative;
   height: 240px;
-  width: min(100%, 300px);
+  width: min(100%, 260px);
   margin: 0 auto;
 }
 
@@ -143,8 +144,8 @@
 .donut-card__legend {
   display: grid;
   gap: 0.75rem;
-  width: 100%;
-  max-width: 360px;
+  width: min(100%, 320px);
+  min-width: 0;
 }
 
 .donut-card__legend-item {
@@ -153,6 +154,7 @@
   gap: 1rem;
   align-items: flex-start;
   color: var(--bg-dark);
+  min-width: 0;
 }
 
 .donut-card__legend-label {
@@ -161,6 +163,7 @@
   gap: 0.55rem;
   color: var(--text-soft);
   line-height: 1.35;
+  min-width: 0;
 }
 
 .donut-card__legend-label i {
@@ -170,6 +173,11 @@
   display: inline-block;
   margin-top: 0.35rem;
   flex: 0 0 10px;
+}
+
+.donut-card__legend-item strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .donut-card--expanded {
