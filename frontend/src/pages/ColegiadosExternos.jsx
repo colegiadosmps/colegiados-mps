@@ -12,7 +12,7 @@ import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
-const summarizeChart = (items, limit = 8) => {
+const summarizeChart = (items, limit = 5) => {
   if (items.length <= limit) {
     return items;
   }
@@ -95,7 +95,7 @@ const ColegiadosExternos = () => {
       .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
   }, [filteredColegiados]);
 
-  const compactChartData = useMemo(() => summarizeChart(chartData, 8), [chartData]);
+  const compactChartData = useMemo(() => summarizeChart(chartData, 5), [chartData]);
 
   if (!colegiados) {
     return <Loading label="Carregando colegiados externos..." />;

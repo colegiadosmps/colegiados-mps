@@ -63,7 +63,9 @@
 
 .type-summary-card__action {
   margin-top: auto;
-  align-self: flex-start;
+  align-self: center;
+  min-width: 132px;
+  justify-content: center;
 }
 
 .type-card {

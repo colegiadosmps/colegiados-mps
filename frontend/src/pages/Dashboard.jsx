@@ -17,7 +17,7 @@ import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 
-const summarizeChart = (items, limit = 6, aggregateRemaining = false) => {
+const summarizeChart = (items, limit = 5, aggregateRemaining = false) => {
   if (items.length <= limit) {
     return items;
   }
@@ -149,7 +149,7 @@ const Dashboard = () => {
   }, [derived]);
 
   const compactExternosPorOrgao = useMemo(
-    () => summarizeChart(derived?.charts.externosPorOrgao || [], 6, true),
+    () => summarizeChart(derived?.charts.externosPorOrgao || [], 5, true),
     [derived],
   );
 
@@ -160,7 +160,7 @@ const Dashboard = () => {
           ...item,
           label: formatColegiadoDisplayName(item.label),
         })),
-        6,
+        5,
         true,
       ),
     [derived],
