@@ -17,6 +17,21 @@ import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 
+const summarizeChart = (items, limit = 6, aggregateRemaining = false) => {
+  if (items.length <= limit) {
+    return items;
+  }
+
+  const visible = items.slice(0, limit);
+
+  if (!aggregateRemaining) {
+    return visible;
+  }
+
+  const remainingValue = items.slice(limit).reduce((sum, item) => sum + item.value, 0);
+  return [...visible, { label: "Outros", value: remainingValue }];
+};
+
 const aggregateBy = (rows, key, fallback = "Nao informado", sortResults = true) => {
   const counts = new Map();
 
@@ -133,6 +148,29 @@ const Dashboard = () => {
     return [...ordered, ...remaining];
   }, [derived]);
 
+  const compactExternosPorOrgao = useMemo(
+    () => summarizeChart(derived?.charts.externosPorOrgao || [], 6, true),
+    [derived],
+  );
+
+  const compactIntegrantesPorColegiado = useMemo(
+    () =>
+      summarizeChart(
+        (derived?.charts.integrantesPorColegiado || []).map((item) => ({
+          ...item,
+          label: formatColegiadoDisplayName(item.label),
+        })),
+        6,
+        true,
+      ),
+    [derived],
+  );
+
+  const compactIntegrantesPorPapel = useMemo(
+    () => summarizeChart(derived?.charts.integrantesPorPapel || [], 5, false),
+    [derived],
+  );
+
   if (error) {
     return <div className="empty-state">{error}</div>;
   }
@@ -223,12 +261,14 @@ const Dashboard = () => {
         />
         <GraficoBarras
           color="#37b45b"
-          data={derived.charts.externosPorOrgao}
+          data={compactExternosPorOrgao}
+          expandedData={derived.charts.externosPorOrgao}
           title="Quantidade de Colegiados Externos por Orgao"
         />
         <GraficoBarras
           color="#2b74ff"
-          data={derived.charts.integrantesPorColegiado.map((item) => ({
+          data={compactIntegrantesPorColegiado}
+          expandedData={(derived.charts.integrantesPorColegiado || []).map((item) => ({
             ...item,
             label: formatColegiadoDisplayName(item.label),
           }))}
@@ -241,7 +281,8 @@ const Dashboard = () => {
         />
         <GraficoBarras
           color="#7a45e6"
-          data={derived.charts.integrantesPorPapel}
+          data={compactIntegrantesPorPapel}
+          expandedData={derived.charts.integrantesPorPapel}
           title="Quantidade de Integrantes por Papel"
         />
         <DonutChartCard

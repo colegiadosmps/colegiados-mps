@@ -51,9 +51,10 @@ const WrappedYAxisTick = ({ fontSize, maxCharsPerLine, payload, x, y }) => {
   );
 };
 
-const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
+const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const modalData = expandedData?.length ? expandedData : data;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -64,17 +65,17 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
     return () => mediaQuery.removeEventListener("change", sync);
   }, []);
 
-  const buildChartMetrics = (mode) => {
+  const buildChartMetrics = (rows, mode) => {
     const mobileMode = mode === "compact" ? isMobile : false;
     const maxCharsPerLine = mobileMode ? 16 : mode === "expanded" ? 24 : 18;
     const fontSize = mobileMode ? 11 : 13;
     const lineHeight = fontSize + 5;
-    const wrappedLabels = data.map((item) => wrapLabel(item.label, maxCharsPerLine));
+    const wrappedLabels = rows.map((item) => wrapLabel(item.label, maxCharsPerLine));
     const totalLineCount = wrappedLabels.reduce((sum, lines) => sum + lines.length, 0);
     const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
     const chartHeight = Math.max(
-      mode === "expanded" ? 420 : mobileMode ? 220 : 280,
-      totalLineCount * lineHeight + data.length * rowPadding + 34,
+      mode === "expanded" ? 420 : mobileMode ? 220 : 260,
+      totalLineCount * lineHeight + rows.length * rowPadding + 34,
     );
 
     return {
@@ -91,13 +92,13 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
     };
   };
 
-  const renderChart = (mode = "compact") => {
-    const { chartHeight, fontSize, margin, maxCharsPerLine, yAxisWidth } = buildChartMetrics(mode);
+  const renderChart = (rows, mode = "compact") => {
+    const { chartHeight, fontSize, margin, maxCharsPerLine, yAxisWidth } = buildChartMetrics(rows, mode);
 
     return (
       <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart data={data} layout="vertical" margin={margin}>
+          <BarChart data={rows} layout="vertical" margin={margin}>
             <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
             <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize }} />
             <YAxis
@@ -134,11 +135,11 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
         onBodyClick={() => setExpanded(true)}
         title={title}
       >
-        {renderChart()}
+        {renderChart(data)}
       </ChartCard>
       {expanded ? (
         <ExpandedChartModal onClose={() => setExpanded(false)} title={title}>
-          {renderChart("expanded")}
+          {renderChart(modalData, "expanded")}
         </ExpandedChartModal>
       ) : null}
     </>
