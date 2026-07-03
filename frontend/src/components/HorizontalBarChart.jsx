@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -10,9 +10,50 @@ import {
   YAxis,
 } from "recharts";
 import ChartCard from "./ChartCard";
+import ExpandedChartModal from "./ExpandedChartModal";
+
+const wrapLabel = (label, maxCharsPerLine) => {
+  const words = String(label || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+    if (nextLine.length <= maxCharsPerLine || !currentLine) {
+      currentLine = nextLine;
+      return;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.length ? lines : [String(label || "")];
+};
+
+const WrappedYAxisTick = ({ fontSize, maxCharsPerLine, payload, x, y }) => {
+  const lines = wrapLabel(payload.value, maxCharsPerLine);
+  const lineHeight = fontSize + 5;
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+
+  return (
+    <text fill="#4d6787" fontSize={fontSize} textAnchor="end" x={x - 8} y={startY}>
+      {lines.map((line, index) => (
+        <tspan key={`${payload.value}-${index}`} x={x - 8} dy={index === 0 ? 0 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+};
 
 const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
   const [isMobile, setIsMobile] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -23,41 +64,93 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, title }) => {
     return () => mediaQuery.removeEventListener("change", sync);
   }, []);
 
-  const chartHeight = useMemo(() => {
-    const rowHeight = isMobile ? 44 : 52;
-    const baseHeight = isMobile ? 70 : 88;
-    const minHeight = isMobile ? 170 : 220;
-    const maxHeight = isMobile ? 280 : 420;
-    return Math.min(maxHeight, Math.max(minHeight, data.length * rowHeight + baseHeight));
-  }, [data.length, isMobile]);
+  const buildChartMetrics = (mode) => {
+    const mobileMode = mode === "compact" ? isMobile : false;
+    const maxCharsPerLine = mobileMode ? 16 : mode === "expanded" ? 24 : 18;
+    const fontSize = mobileMode ? 11 : 13;
+    const lineHeight = fontSize + 5;
+    const wrappedLabels = data.map((item) => wrapLabel(item.label, maxCharsPerLine));
+    const totalLineCount = wrappedLabels.reduce((sum, lines) => sum + lines.length, 0);
+    const rowPadding = mobileMode ? 24 : mode === "expanded" ? 28 : 26;
+    const chartHeight = Math.max(
+      mode === "expanded" ? 420 : mobileMode ? 220 : 280,
+      totalLineCount * lineHeight + data.length * rowPadding + 34,
+    );
+
+    return {
+      chartHeight,
+      fontSize,
+      maxCharsPerLine,
+      wrapperClassName: mode === "expanded" ? "chart-scroll-region chart-scroll-region--expanded" : "chart-scroll-region",
+      yAxisWidth: mobileMode ? 128 : mode === "expanded" ? 240 : 170,
+      margin:
+        mode === "expanded"
+          ? { top: 8, right: 40, left: 18, bottom: 8 }
+          : mobileMode
+            ? { top: 4, right: 18, left: 2, bottom: 4 }
+            : { top: 6, right: 28, left: 6, bottom: 6 },
+    };
+  };
+
+  const renderChart = (mode = "compact") => {
+    const { chartHeight, fontSize, margin, maxCharsPerLine, wrapperClassName, yAxisWidth } =
+      buildChartMetrics(mode);
+
+    return (
+      <div className={wrapperClassName}>
+        <div className="chart-area chart-area--horizontal" style={{ height: chartHeight }}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={data} layout="vertical" margin={margin}>
+              <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
+              <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize }} />
+              <YAxis
+                dataKey="label"
+                type="category"
+                tick={<WrappedYAxisTick fontSize={fontSize} maxCharsPerLine={maxCharsPerLine} />}
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                width={yAxisWidth}
+              />
+              <Tooltip
+                contentStyle={{ borderRadius: "14px", borderColor: "rgba(10, 45, 94, 0.1)" }}
+                cursor={{ fill: "rgba(11, 95, 143, 0.08)" }}
+              />
+              <Bar dataKey="value" fill={color} maxBarSize={mode === "expanded" ? 34 : 30} radius={[0, 10, 10, 0]}>
+                <LabelList
+                  dataKey="value"
+                  fill="#0b2f4f"
+                  fontSize={fontSize}
+                  position="right"
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <ChartCard title={title}>
-      <div className="chart-area chart-area--horizontal">
-        <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={isMobile ? { top: 4, right: 18, left: 0, bottom: 4 } : { top: 6, right: 28, left: 12, bottom: 6 }}
-        >
-          <CartesianGrid stroke="#d4dfeb" strokeDasharray="2 4" horizontal={false} />
-          <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: isMobile ? 11 : 13 }} />
-          <YAxis
-            dataKey="label"
-            type="category"
-            tickLine={false}
-            axisLine={false}
-            tick={{ fontSize: isMobile ? 11 : 13 }}
-            width={isMobile ? 88 : 110}
-          />
-          <Tooltip cursor={{ fill: "rgba(11, 95, 143, 0.08)" }} />
-          <Bar dataKey="value" fill={color} radius={[0, 10, 10, 0]}>
-            <LabelList dataKey="value" position="right" fill="#0b2f4f" fontSize={isMobile ? 11 : 13} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </ChartCard>
+    <>
+      <ChartCard
+        actions={
+          <button className="chart-card__action" onClick={() => setExpanded(true)} type="button">
+            Expandir
+          </button>
+        }
+        interactive
+        onBodyClick={() => setExpanded(true)}
+        title={title}
+      >
+        {renderChart()}
+      </ChartCard>
+      {expanded ? (
+        <ExpandedChartModal onClose={() => setExpanded(false)} title={title}>
+          {renderChart("expanded")}
+        </ExpandedChartModal>
+      ) : null}
+    </>
   );
 };
 

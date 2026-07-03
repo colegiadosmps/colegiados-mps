@@ -17,13 +17,14 @@ const PowerBiTable = ({
   maxVisibleRows = 10,
   rows,
   rowsPerPageOptions = [10, 25, 50],
+  sortable = true,
 }) => {
   const [sortConfig, setSortConfig] = useState(null);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(rowsPerPageOptions[0] || 10);
 
   const sortedRows = useMemo(() => {
-    if (!sortConfig) {
+    if (!sortConfig || !sortable) {
       return rows;
     }
 
@@ -36,7 +37,7 @@ const PowerBiTable = ({
       const result = compareValues(leftValue, rightValue);
       return sortConfig.direction === "asc" ? result : -result;
     });
-  }, [columns, rows, sortConfig]);
+  }, [columns, rows, sortConfig, sortable]);
 
   if (!rows.length) {
     return <div className="empty-state">{emptyMessage}</div>;
@@ -57,6 +58,10 @@ const PowerBiTable = ({
   );
 
   const handleSort = (key) => {
+    if (!sortable) {
+      return;
+    }
+
     setPage(1);
     setSortConfig((current) => {
       if (!current || current.key !== key) {
@@ -86,18 +91,20 @@ const PowerBiTable = ({
                   key={column.key}
                   className={column.className || ""}
                   onClick={() => handleSort(column.key)}
-                  role="button"
+                  role={sortable ? "button" : undefined}
                   style={column.width ? { width: column.width } : undefined}
                 >
                   <span className="powerbi-table__head">
                     {column.label}
-                    <small>
-                      {sortConfig?.key === column.key
-                        ? sortConfig.direction === "asc"
-                          ? "ASC"
-                          : "DESC"
-                        : "SORT"}
-                    </small>
+                    {sortable ? (
+                      <small>
+                        {sortConfig?.key === column.key
+                          ? sortConfig.direction === "asc"
+                            ? "ASC"
+                            : "DESC"
+                          : "SORT"}
+                      </small>
+                    ) : null}
                   </span>
                 </th>
               ))}

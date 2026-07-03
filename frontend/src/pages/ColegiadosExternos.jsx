@@ -145,6 +145,7 @@ const ColegiadosExternos = () => {
           columns={columns}
           emptyMessage="Nenhum colegiado externo encontrado para os filtros selecionados."
           rows={filteredColegiados}
+          sortable={false}
         />
       </section>
     </div>

@@ -17,7 +17,7 @@ import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 
-const aggregateBy = (rows, key, fallback = "Nao informado") => {
+const aggregateBy = (rows, key, fallback = "Nao informado", sortResults = true) => {
   const counts = new Map();
 
   rows.forEach((row) => {
@@ -25,9 +25,13 @@ const aggregateBy = (rows, key, fallback = "Nao informado") => {
     counts.set(label, (counts.get(label) || 0) + 1);
   });
 
-  return Array.from(counts.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
+  const entries = Array.from(counts.entries()).map(([label, value]) => ({ label, value }));
+
+  if (!sortResults) {
+    return entries;
+  }
+
+  return entries.sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
 };
 
 const Dashboard = () => {
@@ -72,7 +76,7 @@ const Dashboard = () => {
       totalTitulares: membros.filter((item) => item.tipo_vinculo === "Titular").length,
       totalSuplentes: membros.filter((item) => item.tipo_vinculo === "Suplente").length,
       charts: {
-        internosPorTipo: aggregateBy(internos, "tipo"),
+        internosPorTipo: aggregateBy(internos, "tipo", "Nao informado", false),
         externosPorOrgao: aggregateBy(
           externos.map((item) => ({
             ...item,
@@ -87,6 +91,47 @@ const Dashboard = () => {
       },
     };
   }, [membros, reunioes, resumo]);
+
+  const orderedInternosPorTipo = useMemo(() => {
+    if (!derived) {
+      return [];
+    }
+
+    const typeOrder = ["Conselho", "Camara", "Comite", "Grupo de Trabalho", "Subcomite"];
+    const normalizedOrder = new Map(
+      typeOrder.map((item, index) => [
+        item
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase(),
+        index,
+      ]),
+    );
+
+    const groupedByType = new Map(
+      derived.charts.internosPorTipo.map((item) => [
+        item.label
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase(),
+        item,
+      ]),
+    );
+
+    const ordered = typeOrder
+      .map((item) => groupedByType.get(item.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()))
+      .filter(Boolean);
+
+    const remaining = derived.charts.internosPorTipo.filter((item) => {
+      const normalizedLabel = item.label
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      return !normalizedOrder.has(normalizedLabel);
+    });
+
+    return [...ordered, ...remaining];
+  }, [derived]);
 
   if (error) {
     return <div className="empty-state">{error}</div>;
@@ -173,7 +218,7 @@ const Dashboard = () => {
       <section className="charts-grid charts-grid--dashboard">
         <GraficoBarras
           color="#2b74ff"
-          data={derived.charts.internosPorTipo}
+          data={orderedInternosPorTipo}
           title="Distribuicao de Colegiados Internos por Tipo"
         />
         <GraficoBarras
