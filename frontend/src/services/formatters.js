@@ -11,6 +11,37 @@ const displayOverrides = {
   CPS_ANAPOLIS_GO: "CPS - Anápolis/GO",
   CPS_ARACAJU_SE: "CPS - Aracaju/SE",
   CPS_BELO_HORIZONTE_MG: "CPS - Belo Horizonte/MG",
+  CONAPREV_ATUARIA: "Atuaria",
+  CONAPREV_COPAJURE: "COPAJURE",
+};
+const UF_TO_ESTADO = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapa",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceara",
+  DF: "Distrito Federal",
+  ES: "Espirito Santo",
+  GO: "Goias",
+  MA: "Maranhao",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Para",
+  PB: "Paraiba",
+  PR: "Parana",
+  PE: "Pernambuco",
+  PI: "Piaui",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondonia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "Sao Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
 };
 
 const formatDateParts = (year, month, day) => `${day}/${month}/${year}`;
@@ -85,6 +116,40 @@ export const formatColegiadoDisplayName = (value) => {
   }
 
   return cleaned;
+};
+
+export const extractCpsLocation = (value) => {
+  const normalized = normalizeKey(value);
+
+  if (!normalized.startsWith("CPS_")) {
+    return {
+      municipio: null,
+      uf: null,
+      estado: null,
+    };
+  }
+
+  const parts = normalized.split("_").filter(Boolean);
+
+  if (parts.length < 3) {
+    return {
+      municipio: null,
+      uf: null,
+      estado: null,
+    };
+  }
+
+  const uf = parts[parts.length - 1];
+  const municipio = parts
+    .slice(1, -1)
+    .map((chunk) => toTitleCase(chunk))
+    .join(" ");
+
+  return {
+    municipio: municipio || null,
+    uf: UF_TO_ESTADO[uf] ? uf : null,
+    estado: UF_TO_ESTADO[uf] || null,
+  };
 };
 
 export const formatDate = (value) => {

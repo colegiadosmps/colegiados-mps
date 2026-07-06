@@ -11,6 +11,7 @@ import publicacoesRoutes from "./routes/publicacoesRoutes.js";
 import importacoesRoutes from "./routes/importacoesRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import { rebuildColegiadoHierarchy } from "./services/hierarquiaService.js";
 import sincronizacoesRoutes from "./routes/sincronizacoesRoutes.js";
 
 dotenv.config();
@@ -119,6 +120,7 @@ const initializeDatabase = async () => {
   const schema = fs.readFileSync(schemaPath, "utf8");
   await exec(schema);
   await ensureSchemaCompatibility();
+  await rebuildColegiadoHierarchy([]);
 };
 
 initializeDatabase()

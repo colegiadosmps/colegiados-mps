@@ -403,6 +403,55 @@
   gap: 1rem;
 }
 
+.instancias-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.instancias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.instancia-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow-soft);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.instancia-card__content {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.instancia-card__content h4 {
+  margin: 0;
+  color: var(--bg-dark);
+}
+
+.instancia-card__content p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.instancia-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  color: var(--text-soft);
+}
+
+.instancia-card__action {
+  align-self: center;
+  min-width: 132px;
+}
+
 .publication-card {
   display: flex;
   flex-direction: column;

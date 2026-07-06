@@ -9,6 +9,7 @@ import ColegiadosExternos from "./pages/ColegiadosExternos";
 import ColegiadosInternos from "./pages/ColegiadosInternos";
 import ColegiadosInternosTipo from "./pages/ColegiadosInternosTipo";
 import ConsultaColegiado from "./pages/ConsultaColegiado";
+import EstadoInstanciasPage from "./pages/EstadoInstanciasPage";
 import HistoricoReunioes from "./pages/HistoricoReunioes";
 import Integrantes from "./pages/Integrantes";
 import Publicacoes from "./pages/Publicacoes";
@@ -35,6 +36,7 @@ const App = () => {
                 element={<ColegiadosInternosTipo />}
               />
               <Route path="/colegiados/externos" element={<ColegiadosExternos />} />
+              <Route path="/colegiados/:sigla/estado/:uf" element={<EstadoInstanciasPage />} />
               <Route path="/colegiados/:sigla" element={<ConsultaColegiado />} />
               <Route path="/integrantes" element={<Integrantes />} />
               <Route path="/calendario-reunioes" element={<CalendarioReunioes />} />

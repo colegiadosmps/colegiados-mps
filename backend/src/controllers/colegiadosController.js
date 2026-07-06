@@ -1,5 +1,23 @@
 import { all, get } from "../database/db.js";
+import {
+  UF_ESTADOS,
+  getHierarchyByParent,
+  getHierarchyByParentAndUf,
+} from "../services/hierarquiaService.js";
 import { normalizeKey } from "../utils/formatters.js";
+
+const formatInstanciaPayload = (row) => ({
+  sigla: row.filho_sigla,
+  sigla_exibicao: row.sigla_exibicao || row.filho_sigla,
+  chave_pasta: row.filho_chave_pasta || row.filho_sigla,
+  nome: row.nome || row.sigla_exibicao || row.filho_sigla,
+  municipio: row.municipio || null,
+  uf: row.uf || null,
+  estado: row.estado || null,
+  ativo: row.ativo || "Nao informado",
+  membros_count: row.membros_count || 0,
+  reunioes_count: row.reunioes_count || 0,
+});
 
 export const listarColegiados = async (_request, response) => {
   try {
@@ -68,6 +86,87 @@ export const listarColegiados = async (_request, response) => {
     );
 
     response.json(colegiados);
+  } catch (error) {
+    response.status(500).json({ message: error.message });
+  }
+};
+
+export const listarInstanciasPorUf = async (request, response) => {
+  try {
+    const parentSigla = normalizeKey(request.params.sigla);
+    const uf = normalizeKey(request.params.uf);
+    const municipio = request.query.municipio || "";
+    const rows = await getHierarchyByParentAndUf(parentSigla, uf, municipio);
+
+    const estado = UF_ESTADOS[uf] || null;
+    const instancias = rows.map(formatInstanciaPayload);
+
+    response.json({
+      pai: parentSigla,
+      agrupamento: "estado",
+      uf,
+      estado,
+      total: instancias.length,
+      instancias,
+    });
+  } catch (error) {
+    response.status(500).json({ message: error.message });
+  }
+};
+
+export const listarInstanciasPorColegiado = async (request, response) => {
+  try {
+    const parentSigla = normalizeKey(request.params.sigla);
+    const rows = await getHierarchyByParent(parentSigla);
+
+    if (!rows.length) {
+      response.json({
+        pai: parentSigla,
+        total: 0,
+        agrupamento: null,
+        instancias: [],
+      });
+      return;
+    }
+
+    const allChildrenAreCps = rows.every((row) => Boolean(row.uf));
+
+    if (allChildrenAreCps) {
+      const estadoMap = new Map();
+
+      rows.forEach((row) => {
+        const key = row.uf || "SEM_UF";
+        const current = estadoMap.get(key) || {
+          uf: row.uf,
+          estado: row.estado || UF_ESTADOS[row.uf] || "Demais estados",
+          total: 0,
+          instancias: [],
+        };
+
+        current.instancias.push(formatInstanciaPayload(row));
+        current.total += 1;
+        estadoMap.set(key, current);
+      });
+
+      const estados = Array.from(estadoMap.values()).sort((left, right) =>
+        String(left.estado || "").localeCompare(String(right.estado || ""), "pt-BR"),
+      );
+
+      response.json({
+        pai: parentSigla,
+        total: rows.length,
+        agrupamento: "estado",
+        estados,
+      });
+      return;
+    }
+
+    response.json({
+      pai: parentSigla,
+      total: rows.length,
+      agrupamento: "direto",
+      instancias: rows.map(formatInstanciaPayload),
+    });
   } catch (error) {
     response.status(500).json({ message: error.message });
   }

@@ -10,6 +10,7 @@ import {
 import Loading from "../components/Loading";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
+import InstanciasColegiadasSection from "../components/InstanciasColegiadasSection";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
 import {
@@ -226,6 +227,8 @@ const ConsultaColegiado = () => {
           <em>Abrir publicacoes</em>
         </button>
       </section>
+
+      <InstanciasColegiadasSection sigla={colegiado.sigla} />
 
       {activeModal === "membros" ? (
         <ModalSection

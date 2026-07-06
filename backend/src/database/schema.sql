@@ -92,6 +92,20 @@ CREATE TABLE IF NOT EXISTS importacoes (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS colegiado_hierarquia (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pai_sigla TEXT NOT NULL,
+  filho_sigla TEXT NOT NULL,
+  filho_chave_pasta TEXT,
+  tipo_relacao TEXT,
+  origem TEXT,
+  municipio TEXT,
+  uf TEXT,
+  estado TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS sincronizacoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   data_sincronizacao TEXT NOT NULL,

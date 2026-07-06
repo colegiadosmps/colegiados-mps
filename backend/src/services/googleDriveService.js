@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { get, run } from "../database/db.js";
+import { rebuildColegiadoHierarchy } from "./hierarquiaService.js";
 import { importCsvContent, importRootCsvContent } from "./importacaoService.js";
 import { parseFileName } from "./fileNameService.js";
 import { formatDateTime, normalizeKey } from "../utils/formatters.js";
@@ -335,6 +336,7 @@ export const syncGoogleDrive = async () => {
     imported_files: [],
     publication_folders: [],
     skipped_files: [],
+    hierarchy_relations: [],
     errors: [],
     warnings: [],
   };
@@ -413,6 +415,11 @@ export const syncGoogleDrive = async () => {
         colegiadoFolder.name,
         config.publicationsSuffix,
       );
+      const publicationFolderIds = new Set(publicationFolders.map((item) => item.id));
+      const childFolders = folderItems.filter(
+        (item) =>
+          item.mimeType === GOOGLE_FOLDER_MIME && !publicationFolderIds.has(item.id),
+      );
       const latestByType = new Map();
 
       for (const csvFile of csvFiles) {
@@ -484,6 +491,17 @@ export const syncGoogleDrive = async () => {
         });
       }
 
+      childFolders.forEach((childFolder) => {
+        summary.hierarchy_relations.push({
+          paiSigla: folderKey,
+          filhoSigla: normalizeKey(childFolder.name),
+          filhoChavePasta: normalizeKey(childFolder.name),
+          siglaExibicao: childFolder.name,
+          nome: childFolder.name,
+          origem: "Pasta Google Drive",
+        });
+      });
+
       if (!publicationFolders.length) {
         summary.warnings.push({
           file: colegiadoFolder.name,
@@ -497,6 +515,8 @@ export const syncGoogleDrive = async () => {
       });
     }
   }
+
+  await rebuildColegiadoHierarchy(summary.hierarchy_relations);
 
   return {
     message: "Sincronizacao com Google Drive concluida.",
