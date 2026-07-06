@@ -36,8 +36,11 @@
   top: 0;
   z-index: 1;
   border-bottom: 1px solid rgba(10, 45, 94, 0.08);
-  cursor: pointer;
   background: #ffffff;
+}
+
+.powerbi-table th[role="button"] {
+  cursor: pointer;
 }
 
 .powerbi-table__head {

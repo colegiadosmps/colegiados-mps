@@ -12,6 +12,16 @@ import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
 
+const summarizeChart = (items, limit = 5) => {
+  if (items.length <= limit) {
+    return items;
+  }
+
+  const visible = items.slice(0, limit);
+  const remainingValue = items.slice(limit).reduce((sum, item) => sum + item.value, 0);
+  return [...visible, { label: "Outros", value: remainingValue }];
+};
+
 const columns = [
   {
     key: "nome",
@@ -85,6 +95,8 @@ const ColegiadosExternos = () => {
       .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
   }, [filteredColegiados]);
 
+  const compactChartData = useMemo(() => summarizeChart(chartData, 5), [chartData]);
+
   if (!colegiados) {
     return <Loading label="Carregando colegiados externos..." />;
   }
@@ -135,7 +147,8 @@ const ColegiadosExternos = () => {
         />
         <GraficoBarras
           color="#2b74ff"
-          data={chartData}
+          data={compactChartData}
+          expandedData={chartData}
           title="Colegiados externos por orgao"
         />
       </section>
@@ -145,6 +158,7 @@ const ColegiadosExternos = () => {
           columns={columns}
           emptyMessage="Nenhum colegiado externo encontrado para os filtros selecionados."
           rows={filteredColegiados}
+          sortable={false}
         />
       </section>
     </div>

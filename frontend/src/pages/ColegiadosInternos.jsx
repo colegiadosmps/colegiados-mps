@@ -172,7 +172,7 @@ const ColegiadosInternos = () => {
               onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo)}`)}
               type="button"
             >
-              Ver {normalizeType(tipo) === "conselho" ? "conselhos" : tipo.toLowerCase()}
+              Acessar
             </button>
           </article>
         ))}

@@ -4,7 +4,6 @@ import { HiOutlineUsers } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
-import MetricCard from "../components/MetricCard";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
@@ -85,63 +84,63 @@ const Integrantes = () => {
   return (
     <div className="page-content">
       <PageHeader
+        filters={
+          <>
+            <FilterDropdown
+              label="Colegiado"
+              options={buildOptions(
+                colegiados.map((item) =>
+                  formatColegiadoDisplayName(item.sigla_exibicao || item.sigla),
+                ),
+              )}
+              value={filters.colegiado}
+              onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
+            />
+            <FilterBox label="Nome">
+              <input
+                value={filters.nome}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, nome: event.target.value }))
+                }
+                placeholder="Buscar por nome"
+              />
+            </FilterBox>
+            <FilterDropdown
+              label="Tipo de Vinculo"
+              options={buildOptions(membros.map((item) => item.tipo_vinculo))}
+              value={filters.tipo_vinculo}
+              onChange={(value) =>
+                setFilters((current) => ({ ...current, tipo_vinculo: value }))
+              }
+            />
+            <FilterDropdown
+              label="Papel"
+              options={buildOptions(membros.map((item) => item.papel))}
+              value={filters.papel}
+              onChange={(value) => setFilters((current) => ({ ...current, papel: value }))}
+            />
+            <ClearFiltersButton
+              onClick={() =>
+                setFilters({
+                  colegiado: ALL_VALUE,
+                  nome: "",
+                  tipo_vinculo: ALL_VALUE,
+                  papel: ALL_VALUE,
+                })
+              }
+            />
+          </>
+        }
+        filtersClassName="page-header__filters--inline"
         icon={HiOutlineUsers}
+        metricCaption="Total de integrantes ativos"
+        metricIcon={HiOutlineUsers}
+        metricLabel="Integrantes"
+        metricTone="blue"
+        metricValue={filteredMembros.length}
         subtitle="Consulte e analise os integrantes vinculados aos colegiados."
         title="Integrantes"
       />
-
-      <section className="content-card section-toolbar">
-        <MetricCard
-          caption="Total de integrantes ativos"
-          icon={HiOutlineUsers}
-          label="Integrantes"
-          tone="blue"
-          value={filteredMembros.length}
-        />
-        <div className="section-toolbar__filters">
-          <FilterDropdown
-            label="Tipo/Colegiado"
-            options={buildOptions(
-              colegiados.map((item) =>
-                formatColegiadoDisplayName(item.sigla_exibicao || item.sigla),
-              ),
-            )}
-            value={filters.colegiado}
-            onChange={(value) => setFilters((current) => ({ ...current, colegiado: value }))}
-          />
-          <FilterBox label="Nome">
-            <input
-              value={filters.nome}
-              onChange={(event) => setFilters((current) => ({ ...current, nome: event.target.value }))}
-              placeholder="Buscar por nome"
-            />
-          </FilterBox>
-          <FilterDropdown
-            label="Tipo de Vinculo"
-            options={buildOptions(membros.map((item) => item.tipo_vinculo))}
-            value={filters.tipo_vinculo}
-            onChange={(value) =>
-              setFilters((current) => ({ ...current, tipo_vinculo: value }))
-            }
-          />
-          <FilterDropdown
-            label="Papel"
-            options={buildOptions(membros.map((item) => item.papel))}
-            value={filters.papel}
-            onChange={(value) => setFilters((current) => ({ ...current, papel: value }))}
-          />
-          <ClearFiltersButton
-            onClick={() =>
-              setFilters({
-                colegiado: ALL_VALUE,
-                nome: "",
-                tipo_vinculo: ALL_VALUE,
-                papel: ALL_VALUE,
-              })
-            }
-          />
-        </div>
-      </section>
 
       <section className="content-card">
         <TabelaMembros membros={filteredMembros} />
