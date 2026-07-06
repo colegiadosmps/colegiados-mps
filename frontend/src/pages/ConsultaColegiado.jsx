@@ -61,11 +61,16 @@ const publicacoesColumns = [
   },
 ];
 
-const statItems = (colegiado) =>
+const statItems = (colegiado, instanciasCount) =>
   [
     colegiado.tipo ? { label: "Tipo", value: colegiado.tipo } : null,
     { label: "Status", value: formatBooleanStatus(colegiado.ativo) },
-    { label: "Membros", value: `${colegiado.membros?.length || 0} membros` },
+    instanciasCount > 0
+      ? {
+          label: "Instancias colegiadas",
+          value: `${instanciasCount} instancias colegiadas`,
+        }
+      : { label: "Membros", value: `${colegiado.membros?.length || 0} membros` },
     { label: "Reunioes", value: `${colegiado.reunioes?.length || 0} reunioes` },
   ].filter(Boolean);
 
@@ -92,6 +97,7 @@ const ModalSection = ({ children, onClose, title }) => (
 const ConsultaColegiado = () => {
   const { sigla } = useParams();
   const [colegiado, setColegiado] = useState(null);
+  const [instanciasCount, setInstanciasCount] = useState(0);
   const [error, setError] = useState("");
   const [activeModal, setActiveModal] = useState("");
   const [memberFilters, setMemberFilters] = useState({
@@ -108,7 +114,19 @@ const ConsultaColegiado = () => {
       .catch((requestError) => setError(requestError.message));
   }, [sigla]);
 
-  const stats = useMemo(() => (colegiado ? statItems(colegiado) : []), [colegiado]);
+  useEffect(() => {
+    setInstanciasCount(0);
+
+    api
+      .get(`/api/colegiados/${sigla}/instancias`)
+      .then((payload) => setInstanciasCount(payload?.total || 0))
+      .catch(() => setInstanciasCount(0));
+  }, [sigla]);
+
+  const stats = useMemo(
+    () => (colegiado ? statItems(colegiado, instanciasCount) : []),
+    [colegiado, instanciasCount],
+  );
   const resumoGeral = useMemo(() => {
     if (!colegiado) {
       return [];

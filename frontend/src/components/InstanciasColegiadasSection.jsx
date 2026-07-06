@@ -5,6 +5,7 @@ import FilterDropdown from "./FilterDropdown";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions } from "../services/filterUtils";
 import {
+  extractCpsLocation,
   formatBooleanStatus,
   formatColegiadoDisplayName,
   getRegionOrder,
@@ -68,6 +69,7 @@ const InstanciasColegiadasSection = ({ sigla }) => {
   const [payload, setPayload] = useState(null);
   const [estadoFilter, setEstadoFilter] = useState(ALL_VALUE);
   const [ufFilter, setUfFilter] = useState(ALL_VALUE);
+  const normalizedParentSigla = String(sigla || "").trim().toUpperCase();
 
   useEffect(() => {
     api
@@ -76,9 +78,48 @@ const InstanciasColegiadasSection = ({ sigla }) => {
       .catch(() => setPayload({ total: 0, agrupamento: null, instancias: [] }));
   }, [sigla]);
 
+  const cnpsDerivedEstados = useMemo(() => {
+    if (normalizedParentSigla !== "CNPS") {
+      return [];
+    }
+
+    const map = new Map();
+
+    (payload?.instancias || []).forEach((instancia) => {
+      const location =
+        extractCpsLocation(instancia.sigla_exibicao || instancia.sigla || instancia.nome) || {};
+      const ufInfo = getUfInfo(location.uf || instancia.uf);
+      const uf = ufInfo.uf;
+
+      if (!uf) {
+        return;
+      }
+
+      const current = map.get(uf) || {
+        uf,
+        estado: ufInfo.estado,
+        regiao: ufInfo.regiao,
+        total: 0,
+      };
+
+      current.total += 1;
+      map.set(uf, current);
+    });
+
+    return Array.from(map.values()).sort((left, right) =>
+      String(left.estado || left.uf).localeCompare(String(right.estado || right.uf), "pt-BR"),
+    );
+  }, [normalizedParentSigla, payload?.instancias]);
+
+  const shouldRenderStateGroups =
+    payload?.agrupamento === "estado" || normalizedParentSigla === "CNPS";
   const estados = useMemo(
     () =>
-      [...(payload?.estados || [])]
+      [...(shouldRenderStateGroups
+        ? payload?.agrupamento === "estado"
+          ? payload?.estados || []
+          : cnpsDerivedEstados
+        : [])]
         .map((estado) => {
           const ufInfo = getUfInfo(estado.uf);
           return {
@@ -91,7 +132,7 @@ const InstanciasColegiadasSection = ({ sigla }) => {
         .sort((left, right) =>
           String(left.estado || left.uf).localeCompare(String(right.estado || right.uf), "pt-BR"),
         ),
-    [payload?.estados],
+    [cnpsDerivedEstados, payload?.agrupamento, payload?.estados, shouldRenderStateGroups],
   );
   const filteredEstados = useMemo(
     () =>
@@ -122,14 +163,14 @@ const InstanciasColegiadasSection = ({ sigla }) => {
         <div>
           <h3>Instancias Colegiadas</h3>
           <p>
-            {payload.agrupamento === "estado"
+            {shouldRenderStateGroups
               ? "Conselhos de Previdencia Social organizados por Estado."
               : "Instancias colegiadas vinculadas a esta estrutura."}
           </p>
         </div>
       </div>
 
-      {payload.agrupamento === "estado" ? (
+      {shouldRenderStateGroups ? (
         <>
           <div className="instancias-filters">
             <FilterDropdown
