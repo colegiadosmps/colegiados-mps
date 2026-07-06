@@ -9,11 +9,9 @@ const EstadoCard = ({ estado, parentSigla }) => {
   return (
     <article className="instancia-card instancia-card--estado">
       <div className="instancia-card__content">
-        <span className="pill">{estado.uf}</span>
+        <span className="pill pill--soft">{estado.uf}</span>
         <h4>{estado.estado}</h4>
-        <p>
-          {estado.total} inst{estado.total === 1 ? "ancia colegiada" : "ancias colegiadas"}
-        </p>
+        <p>{estado.total} inst{estado.total === 1 ? "ancia colegiada" : "ancias colegiadas"}</p>
       </div>
       <button
         className="text-button instancia-card__action"
@@ -72,6 +70,10 @@ const InstanciasColegiadasSection = ({ sigla }) => {
     return null;
   }
 
+  const estados = [...(payload.estados || [])].sort((left, right) =>
+    String(left.estado || left.uf).localeCompare(String(right.estado || right.uf), "pt-BR"),
+  );
+
   return (
     <section className="detail-panel instancias-section">
       <div className="section-heading">
@@ -86,8 +88,8 @@ const InstanciasColegiadasSection = ({ sigla }) => {
       </div>
 
       {payload.agrupamento === "estado" ? (
-        <div className="instancias-grid">
-          {payload.estados.map((estado) => (
+        <div className="instancias-grid instancias-grid--states">
+          {estados.map((estado) => (
             <EstadoCard
               estado={estado}
               key={estado.uf || estado.estado}

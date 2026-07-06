@@ -4,7 +4,6 @@ import { HiOutlineMap } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterBox from "../components/FilterBox";
 import Loading from "../components/Loading";
-import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import { api } from "../services/api";
 import {
@@ -43,42 +42,39 @@ const EstadoInstanciasPage = () => {
     return <Loading label="Carregando instancias colegiadas..." />;
   }
 
+  const parentDisplayName = formatColegiadoDisplayName(sigla);
+
   return (
     <div className="page-content">
       <PageHeader
-        filters={
-          <>
-            <FilterBox label="Municipio">
-              <input
-                onChange={(event) => setMunicipio(event.target.value)}
-                placeholder="Pesquisar por municipio"
-                value={municipio}
-              />
-            </FilterBox>
-            <ClearFiltersButton onClick={() => setMunicipio("")} />
-          </>
-        }
-        filtersClassName="page-header__filters--inline"
         icon={HiOutlineMap}
-        subtitle={`CPS vinculadas ao ${sigla} no Estado de ${payload.estado || uf}.`}
-        title={`Instancias Colegiadas - ${payload.estado || uf}`}
-      />
+        subtitle={`Instancias colegiadas vinculadas ao ${parentDisplayName} no Estado de ${payload.estado || uf}.`}
+        title={payload.estado || uf}
+      >
+        <div className="hero-inline-metric">
+          <span>Total de instancias:</span>
+          <strong>{filtered.length}</strong>
+        </div>
+      </PageHeader>
 
-      <section className="content-card">
-        <MetricCard
-          caption="Total encontrado"
-          icon={HiOutlineMap}
-          label="CPS encontradas"
-          tone="blue"
-          value={filtered.length}
-        />
+      <section className="content-card instancia-filter-panel">
+        <div className="instancia-filter-panel__grid">
+          <FilterBox label="Municipio">
+            <input
+              onChange={(event) => setMunicipio(event.target.value)}
+              placeholder="Buscar municipio..."
+              value={municipio}
+            />
+          </FilterBox>
+          <ClearFiltersButton onClick={() => setMunicipio("")} />
+        </div>
       </section>
 
       <section className="instancias-grid">
         {filtered.map((instancia) => (
           <article className="instancia-card" key={instancia.sigla}>
             <div className="instancia-card__content">
-              <span className="pill">
+              <span className="pill pill--soft">
                 {formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}
               </span>
               <h4>
