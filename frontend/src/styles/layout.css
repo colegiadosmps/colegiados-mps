@@ -827,7 +827,7 @@
 
 .modal-filters {
   display: grid;
-  grid-template-columns: 2fr repeat(3, 1fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }

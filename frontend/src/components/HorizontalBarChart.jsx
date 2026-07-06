@@ -12,6 +12,29 @@ import {
 import ChartCard from "./ChartCard";
 import ExpandedChartModal from "./ExpandedChartModal";
 
+const TooltipContent = ({ active, label, payload }) => {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid rgba(10, 45, 94, 0.1)",
+        borderRadius: "14px",
+        padding: "0.75rem 0.9rem",
+        boxShadow: "0 12px 24px rgba(11, 47, 79, 0.08)",
+      }}
+    >
+      <p style={{ margin: 0, color: "#0b2f4f", fontWeight: 600 }}>{label}</p>
+      <p style={{ margin: "0.35rem 0 0", color: "#2563eb" }}>
+        Total : {payload[0]?.value ?? 0}
+      </p>
+    </div>
+  );
+};
+
 const wrapLabel = (label, maxCharsPerLine) => {
   const words = String(label || "").split(/\s+/).filter(Boolean);
   const lines = [];
@@ -131,7 +154,7 @@ const HorizontalBarChart = ({ color = "#0b5f8f", data, expandedData, title }) =>
               width={yAxisWidth}
             />
             <Tooltip
-              contentStyle={{ borderRadius: "14px", borderColor: "rgba(10, 45, 94, 0.1)" }}
+              content={<TooltipContent />}
               cursor={{ fill: "rgba(11, 95, 143, 0.08)" }}
             />
             <Bar dataKey="value" fill={color} maxBarSize={mode === "expanded" ? 34 : 30} radius={[0, 10, 10, 0]}>

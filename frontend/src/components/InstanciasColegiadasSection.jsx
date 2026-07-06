@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ClearFiltersButton from "./ClearFiltersButton";
+import FilterBox from "./FilterBox";
 import FilterDropdown from "./FilterDropdown";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions } from "../services/filterUtils";
@@ -67,7 +68,7 @@ const InstanciaDiretaCard = ({ instancia }) => {
 
 const InstanciasColegiadasSection = ({ sigla }) => {
   const [payload, setPayload] = useState(null);
-  const [estadoFilter, setEstadoFilter] = useState(ALL_VALUE);
+  const [municipioFilter, setMunicipioFilter] = useState("");
   const [ufFilter, setUfFilter] = useState(ALL_VALUE);
   const normalizedParentSigla = String(sigla || "").trim().toUpperCase();
 
@@ -100,9 +101,13 @@ const InstanciasColegiadasSection = ({ sigla }) => {
         estado: ufInfo.estado,
         regiao: ufInfo.regiao,
         total: 0,
+        municipios: [],
       };
 
       current.total += 1;
+      if (location.municipio) {
+        current.municipios.push(location.municipio);
+      }
       map.set(uf, current);
     });
 
@@ -127,6 +132,20 @@ const InstanciasColegiadasSection = ({ sigla }) => {
             estado: ufInfo.estado || estado.estado,
             uf: ufInfo.uf || estado.uf,
             regiao: ufInfo.regiao || "Outras",
+            municipios: Array.from(
+              new Set(
+                [
+                  ...(estado.municipios || []),
+                  ...((estado.instancias || []).map((instancia) => {
+                    const location =
+                      extractCpsLocation(
+                        instancia.sigla_exibicao || instancia.sigla || instancia.nome,
+                      ) || {};
+                    return location.municipio || instancia.municipio;
+                  }) || []),
+                ].filter(Boolean),
+              ),
+            ),
           };
         })
         .sort((left, right) =>
@@ -137,11 +156,16 @@ const InstanciasColegiadasSection = ({ sigla }) => {
   const filteredEstados = useMemo(
     () =>
       estados.filter((estado) => {
-        const matchesEstado = estadoFilter === ALL_VALUE || estado.estado === estadoFilter;
+        const search = municipioFilter.trim().toLowerCase();
+        const matchesMunicipio =
+          !search ||
+          (estado.municipios || []).some((municipio) =>
+            String(municipio).toLowerCase().includes(search),
+          );
         const matchesUf = ufFilter === ALL_VALUE || estado.uf === ufFilter;
-        return matchesEstado && matchesUf;
+        return matchesMunicipio && matchesUf;
       }),
-    [estadoFilter, estados, ufFilter],
+    [estados, municipioFilter, ufFilter],
   );
   const groupedEstados = useMemo(() => {
     const order = getRegionOrder();
@@ -173,12 +197,13 @@ const InstanciasColegiadasSection = ({ sigla }) => {
       {shouldRenderStateGroups ? (
         <>
           <div className="instancias-filters">
-            <FilterDropdown
-              label="Estado"
-              onChange={setEstadoFilter}
-              options={buildOptions(estados.map((estado) => estado.estado))}
-              value={estadoFilter}
-            />
+            <FilterBox label="Municipio">
+              <input
+                onChange={(event) => setMunicipioFilter(event.target.value)}
+                placeholder="Buscar municipio..."
+                value={municipioFilter}
+              />
+            </FilterBox>
             <FilterDropdown
               label="UF"
               onChange={setUfFilter}
@@ -187,7 +212,7 @@ const InstanciasColegiadasSection = ({ sigla }) => {
             />
             <ClearFiltersButton
               onClick={() => {
-                setEstadoFilter(ALL_VALUE);
+                setMunicipioFilter("");
                 setUfFilter(ALL_VALUE);
               }}
             />

@@ -17,6 +17,7 @@ import {
   formatBooleanStatus,
   formatColegiadoDisplayName,
   formatDate,
+  formatTime,
 } from "../services/formatters";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions } from "../services/filterUtils";
@@ -106,6 +107,13 @@ const ConsultaColegiado = () => {
     vinculo: ALL_VALUE,
     status: ALL_VALUE,
   });
+  const [calendarFilters, setCalendarFilters] = useState({
+    reuniao: "",
+    local: "",
+    data: "",
+    horario: "",
+    status: "",
+  });
 
   useEffect(() => {
     api
@@ -163,6 +171,39 @@ const ConsultaColegiado = () => {
       return matchesSearch && matchesPapel && matchesVinculo && matchesStatus;
     });
   }, [colegiado?.membros, memberFilters]);
+  const filteredCalendar = useMemo(() => {
+    if (!colegiado?.reunioes) {
+      return [];
+    }
+
+    const reuniaoSearch = calendarFilters.reuniao.trim().toLowerCase();
+    const localSearch = calendarFilters.local.trim().toLowerCase();
+    const dataSearch = calendarFilters.data.trim().toLowerCase();
+    const horarioSearch = calendarFilters.horario.trim().toLowerCase();
+    const statusSearch = calendarFilters.status.trim().toLowerCase();
+
+    return colegiado.reunioes.filter((item) => {
+      const reuniaoValue = String(item.id_reuniao || item.descricao_pauta || "-").toLowerCase();
+      const localValue = String(item.local || "-").toLowerCase();
+      const dataValue = String(formatDate(item.data_reuniao) || "-").toLowerCase();
+      const horarioValue = String(formatTime(item.hora) || "-").toLowerCase();
+      const statusValue = String(item.status_reuniao || "-").toLowerCase();
+
+      const matchesReuniao = !reuniaoSearch || reuniaoValue.includes(reuniaoSearch);
+      const matchesLocal = !localSearch || localValue.includes(localSearch);
+      const matchesData = !dataSearch || dataValue.includes(dataSearch);
+      const matchesHorario = !horarioSearch || horarioValue.includes(horarioSearch);
+      const matchesStatus = !statusSearch || statusValue.includes(statusSearch);
+
+      return (
+        matchesReuniao &&
+        matchesLocal &&
+        matchesData &&
+        matchesHorario &&
+        matchesStatus
+      );
+    });
+  }, [calendarFilters, colegiado?.reunioes]);
 
   if (error) {
     return <div className="empty-state">{error}</div>;
@@ -324,10 +365,73 @@ const ConsultaColegiado = () => {
           onClose={() => setActiveModal("")}
           title={`Calendario de Reunioes de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
         >
+          <div className="modal-filters">
+            <FilterBox label="Reuniao">
+              <input
+                onChange={(event) =>
+                  setCalendarFilters((current) => ({ ...current, reuniao: event.target.value }))
+                }
+                placeholder="Buscar reuniao"
+                value={calendarFilters.reuniao}
+              />
+            </FilterBox>
+            <FilterBox label="Local">
+              <input
+                onChange={(event) =>
+                  setCalendarFilters((current) => ({ ...current, local: event.target.value }))
+                }
+                placeholder="Buscar local"
+                value={calendarFilters.local}
+              />
+            </FilterBox>
+            <FilterBox label="Data">
+              <input
+                onChange={(event) =>
+                  setCalendarFilters((current) => ({ ...current, data: event.target.value }))
+                }
+                placeholder="dd/mm/aaaa"
+                value={calendarFilters.data}
+              />
+            </FilterBox>
+            <FilterBox label="Horario">
+              <input
+                onChange={(event) =>
+                  setCalendarFilters((current) => ({ ...current, horario: event.target.value }))
+                }
+                placeholder="hh:mm"
+                value={calendarFilters.horario}
+              />
+            </FilterBox>
+            <FilterBox label="Status">
+              <input
+                onChange={(event) =>
+                  setCalendarFilters((current) => ({ ...current, status: event.target.value }))
+                }
+                placeholder="Buscar status"
+                value={calendarFilters.status}
+              />
+            </FilterBox>
+            <button
+              className="clear-filters-button"
+              onClick={() =>
+                setCalendarFilters({
+                  reuniao: "",
+                  local: "",
+                  data: "",
+                  horario: "",
+                  status: "",
+                })
+              }
+              type="button"
+            >
+              Limpar
+            </button>
+          </div>
           <PowerBiTable
             columns={calendarioColumns}
             emptyMessage="Nenhuma reuniao encontrada para este colegiado."
-            rows={colegiado.reunioes || []}
+            rows={filteredCalendar}
+            sortable={false}
           />
         </ModalSection>
       ) : null}

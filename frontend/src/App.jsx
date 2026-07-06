@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import StatusBasePanel from "./components/StatusBasePanel";
@@ -19,7 +19,7 @@ const App = () => {
   const [statusOpen, setStatusOpen] = useState(false);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="app-shell">
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
         <div className="app-main">
@@ -47,7 +47,7 @@ const App = () => {
         </div>
         <StatusBasePanel onClose={() => setStatusOpen(false)} open={statusOpen} />
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 

@@ -40,6 +40,7 @@ const TabelaMembros = ({ membros }) => (
     emptyMessage="Nenhum integrante encontrado para os filtros selecionados."
     rowsPerPageOptions={[10, 25, 50]}
     rows={membros}
+    sortable={false}
   />
 );
 
