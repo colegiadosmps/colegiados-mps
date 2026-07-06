@@ -43,6 +43,42 @@ const UF_TO_ESTADO = {
   SE: "Sergipe",
   TO: "Tocantins",
 };
+const UF_TO_REGIAO = {
+  AC: "Regiao Norte",
+  AL: "Regiao Nordeste",
+  AP: "Regiao Norte",
+  AM: "Regiao Norte",
+  BA: "Regiao Nordeste",
+  CE: "Regiao Nordeste",
+  DF: "Regiao Centro-Oeste",
+  ES: "Regiao Sudeste",
+  GO: "Regiao Centro-Oeste",
+  MA: "Regiao Nordeste",
+  MT: "Regiao Centro-Oeste",
+  MS: "Regiao Centro-Oeste",
+  MG: "Regiao Sudeste",
+  PA: "Regiao Norte",
+  PB: "Regiao Nordeste",
+  PR: "Regiao Sul",
+  PE: "Regiao Nordeste",
+  PI: "Regiao Nordeste",
+  RJ: "Regiao Sudeste",
+  RN: "Regiao Nordeste",
+  RS: "Regiao Sul",
+  RO: "Regiao Norte",
+  RR: "Regiao Norte",
+  SC: "Regiao Sul",
+  SP: "Regiao Sudeste",
+  SE: "Regiao Nordeste",
+  TO: "Regiao Norte",
+};
+const REGION_ORDER = [
+  "Regiao Norte",
+  "Regiao Nordeste",
+  "Regiao Centro-Oeste",
+  "Regiao Sudeste",
+  "Regiao Sul",
+];
 
 const formatDateParts = (year, month, day) => `${day}/${month}/${year}`;
 const formatTimeParts = (hours, minutes) => `${hours}:${minutes}`;
@@ -149,8 +185,29 @@ export const extractCpsLocation = (value) => {
     municipio: municipio || null,
     uf: UF_TO_ESTADO[uf] ? uf : null,
     estado: UF_TO_ESTADO[uf] || null,
+    regiao: UF_TO_REGIAO[uf] || null,
   };
 };
+
+export const getUfInfo = (value) => {
+  const uf = normalizeKey(value);
+
+  if (!UF_TO_ESTADO[uf]) {
+    return {
+      uf: null,
+      estado: null,
+      regiao: null,
+    };
+  }
+
+  return {
+    uf,
+    estado: UF_TO_ESTADO[uf],
+    regiao: UF_TO_REGIAO[uf] || null,
+  };
+};
+
+export const getRegionOrder = () => REGION_ORDER.slice();
 
 export const formatDate = (value) => {
   if (!value) {
