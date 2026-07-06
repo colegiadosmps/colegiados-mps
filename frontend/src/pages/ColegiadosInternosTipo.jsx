@@ -28,6 +28,7 @@ const slugToTypeMap = {
   "grupo-de-trabalho": "grupo de trabalho",
   subcomite: "subcomite",
 };
+const allowedTypes = new Set(Object.values(slugToTypeMap));
 
 const singularTitles = {
   camara: { title: "Camaras", singular: "camara" },
@@ -71,6 +72,10 @@ const ColegiadosInternosTipo = () => {
 
   const typedColegiados = useMemo(() => {
     if (!colegiados) {
+      return [];
+    }
+
+    if (!allowedTypes.has(pageType)) {
       return [];
     }
 

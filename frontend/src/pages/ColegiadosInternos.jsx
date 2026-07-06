@@ -18,6 +18,7 @@ const normalizeType = (value) =>
     .toLowerCase();
 
 const typeOrder = ["camara", "comite", "conselho", "grupo de trabalho", "subcomite"];
+const allowedTypes = new Set(typeOrder);
 
 const typeDescriptions = {
   camara: "Camaras vinculadas a colegiados e estruturas tematicas da base.",
@@ -87,6 +88,10 @@ const ColegiadosInternos = () => {
     }
 
     return colegiados.filter((item) => {
+      if (!allowedTypes.has(normalizeType(item.tipo))) {
+        return false;
+      }
+
       const matchesTipo = filters.tipo === ALL_VALUE || item.tipo === filters.tipo;
       const matchesSigla =
         filters.sigla === ALL_VALUE ||

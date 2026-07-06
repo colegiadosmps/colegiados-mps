@@ -19,6 +19,18 @@ const formatInstanciaPayload = (row) => ({
   reunioes_count: row.reunioes_count || 0,
 });
 
+const buildChildInstanceExclusion = () => `
+  NOT EXISTS (
+    SELECT 1
+    FROM colegiado_hierarquia h
+    WHERE h.filho_sigla = c.sigla
+  )
+  AND (
+    c.sigla_colegiado_pai IS NULL
+    OR TRIM(c.sigla_colegiado_pai) = ''
+  )
+`;
+
 export const listarColegiados = async (_request, response) => {
   try {
     const conditions = [];
@@ -42,6 +54,14 @@ export const listarColegiados = async (_request, response) => {
         normalizeKey(_request.query.sigla),
         _request.query.sigla,
       );
+    }
+
+    const shouldExcludeChildInstances =
+      _request.query.incluirInstancias !== "true" &&
+      (_request.query.categoria === "Interno" || _request.query.tipo === "Interno");
+
+    if (shouldExcludeChildInstances) {
+      conditions.push(buildChildInstanceExclusion());
     }
 
     const whereClause = conditions.length
