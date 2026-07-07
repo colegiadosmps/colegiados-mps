@@ -134,3 +134,30 @@ CREATE TABLE IF NOT EXISTS sincronizacao_arquivos (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sincronizacao_id) REFERENCES sincronizacoes(id)
 );
+
+CREATE TABLE IF NOT EXISTS usuarios_admin (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  usuario TEXT NOT NULL UNIQUE,
+  coordenacao TEXT,
+  ramal TEXT,
+  perfil TEXT NOT NULL DEFAULT 'ADMIN',
+  status TEXT NOT NULL DEFAULT 'Ativo',
+  senha_hash TEXT NOT NULL,
+  senha_temporaria INTEGER NOT NULL DEFAULT 0,
+  ultimo_login_em TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id TEXT PRIMARY KEY,
+  usuario_id INTEGER NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expira_em TEXT NOT NULL,
+  revogada_em TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  ultimo_uso_em TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios_admin(id)
+);

@@ -14,7 +14,6 @@ const Header = ({ onOpenStatus, onToggleMenu }) => (
         type="button"
       >
         <HiOutlineCog6Tooth />
-        <span>Status da Base</span>
       </button>
       <button className="menu-button" onClick={onToggleMenu} type="button">
         Menu

@@ -50,6 +50,15 @@ const StatusBasePanel = ({ onClose, open }) => {
   const [error, setError] = useState("");
   const [payload, setPayload] = useState(null);
 
+  const resetAuthState = (nextMessage = "") => {
+    setToken("");
+    setCredentials(initialCredentials);
+    setSubmitting(false);
+    setSyncing(false);
+    setError("");
+    setMessage(nextMessage);
+  };
+
   const loadData = async () => {
     setLoading(true);
     setError("");
@@ -144,7 +153,7 @@ const StatusBasePanel = ({ onClose, open }) => {
     setError("");
 
     try {
-      const result = await api.post("/api/auth/admin", credentials);
+      const result = await api.post("/api/auth/login", credentials);
       setToken(result.token);
       setMessage(result.message || "Acesso autorizado.");
     } catch (requestError) {
@@ -180,13 +189,35 @@ const StatusBasePanel = ({ onClose, open }) => {
   };
 
   const handleLogout = () => {
-    setToken("");
     setPayload(null);
-    setCredentials(initialCredentials);
-    setSubmitting(false);
-    setSyncing(false);
+    api
+      .post(
+        "/api/auth/logout",
+        {},
+        {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {},
+        },
+      )
+      .catch(() => null);
+    resetAuthState("Sessao administrativa finalizada.");
+  };
+
+  const handleForgotPassword = async () => {
     setError("");
-    setMessage("Sessao administrativa finalizada.");
+    setMessage("");
+
+    try {
+      const result = await api.post("/api/auth/esqueci-senha", {
+        user: credentials.user,
+      });
+      setMessage(result.message);
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
 
   return !open ? null : (
@@ -264,6 +295,9 @@ const StatusBasePanel = ({ onClose, open }) => {
               <div className="form-actions full">
                 <button className="primary-button" disabled={submitting} type="submit">
                   {submitting ? "Validando..." : "Entrar"}
+                </button>
+                <button className="text-button" onClick={handleForgotPassword} type="button">
+                  Esqueci minha senha
                 </button>
               </div>
             </form>

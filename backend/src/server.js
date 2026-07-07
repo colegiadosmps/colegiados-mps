@@ -13,6 +13,7 @@ import authRoutes from "./routes/authRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { rebuildColegiadoHierarchy } from "./services/hierarquiaService.js";
 import sincronizacoesRoutes from "./routes/sincronizacoesRoutes.js";
+import { ensureDefaultAdminUser } from "./services/authService.js";
 
 dotenv.config();
 
@@ -105,6 +106,16 @@ const ensureSchemaCompatibility = async () => {
   await ensureColumn("colegiados", "orgao", "TEXT");
   await ensureColumn("colegiados", "dispositivo_legal", "TEXT");
   await ensureColumn("pastas_publicacoes", "drive_folder_id", "TEXT");
+  await ensureColumn("usuarios_admin", "nome", "TEXT");
+  await ensureColumn("usuarios_admin", "email", "TEXT");
+  await ensureColumn("usuarios_admin", "usuario", "TEXT");
+  await ensureColumn("usuarios_admin", "coordenacao", "TEXT");
+  await ensureColumn("usuarios_admin", "ramal", "TEXT");
+  await ensureColumn("usuarios_admin", "perfil", "TEXT DEFAULT 'ADMIN'");
+  await ensureColumn("usuarios_admin", "status", "TEXT DEFAULT 'Ativo'");
+  await ensureColumn("usuarios_admin", "senha_hash", "TEXT");
+  await ensureColumn("usuarios_admin", "senha_temporaria", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn("usuarios_admin", "ultimo_login_em", "TEXT");
 };
 
 app.use("/api/dashboard", dashboardRoutes);
@@ -120,6 +131,7 @@ const initializeDatabase = async () => {
   const schema = fs.readFileSync(schemaPath, "utf8");
   await exec(schema);
   await ensureSchemaCompatibility();
+  await ensureDefaultAdminUser();
   await rebuildColegiadoHierarchy([]);
 };
 
