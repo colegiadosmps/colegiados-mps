@@ -5,7 +5,7 @@ import { get, run } from "../database/db.js";
 const DEFAULT_ADMIN_NAME = "Andre Ximenes";
 const DEFAULT_ADMIN_EMAIL = "andre.ximenes@previdencia.gov.br";
 const DEFAULT_ADMIN_USER = "admin";
-const DEFAULT_ADMIN_PASSWORD = "C2026@mps";
+const DEFAULT_ADMIN_PASSWORD = "Colegiados@2026";
 const SESSION_TTL_HOURS = 8;
 const SCRYPT_KEY_LENGTH = 64;
 const scrypt = promisify(crypto.scrypt);
@@ -156,6 +156,28 @@ export const ensureDefaultAdminUser = async () => {
   }
 
   if (!normalizeValue(existingUser.senha_hash)) {
+    await run(
+      `
+        UPDATE usuarios_admin
+        SET senha_hash = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `,
+      [await hashPassword(config.senha), existingUser.id],
+    );
+    return;
+  }
+
+  const isSeedAdmin =
+    normalizeComparableValue(existingUser.email) === normalizeComparableValue(config.email) &&
+    normalizeComparableValue(existingUser.usuario) === normalizeComparableValue(config.usuario) &&
+    normalizeComparableValue(existingUser.perfil) === normalizeComparableValue(config.perfil);
+
+  if (
+    isSeedAdmin &&
+    Number(existingUser.senha_temporaria) === 1 &&
+    !normalizeValue(existingUser.ultimo_login_em)
+  ) {
     await run(
       `
         UPDATE usuarios_admin
