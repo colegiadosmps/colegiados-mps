@@ -4,7 +4,7 @@ import {
   formatColegiadoDisplayName,
 } from "../services/formatters";
 
-const buildColumns = () => [
+const buildColumns = (extraColumns = []) => [
   { key: "nome_membro", label: "Nome", width: "220px" },
   {
     key: "sigla_colegiado",
@@ -32,11 +32,12 @@ const buildColumns = () => [
       </span>
     ),
   },
+  ...extraColumns,
 ];
 
-const TabelaMembros = ({ membros }) => (
+const TabelaMembros = ({ membros, extraColumns = [] }) => (
   <PowerBiTable
-    columns={buildColumns()}
+    columns={buildColumns(extraColumns)}
     emptyMessage="Nenhum integrante encontrado para os filtros selecionados."
     rowsPerPageOptions={[10, 25, 50]}
     rows={membros}

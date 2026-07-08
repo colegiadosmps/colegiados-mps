@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HiOutlineBriefcase, HiOutlineBuildingLibrary } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import MetricCard from "../components/MetricCard";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
@@ -22,7 +24,7 @@ const summarizeChart = (items, limit = 5) => {
   return [...visible, { label: "Outros", value: remainingValue }];
 };
 
-const columns = [
+const buildColumns = (extraColumns = []) => [
   {
     key: "nome",
     label: "Colegiado",
@@ -43,18 +45,26 @@ const columns = [
     className: "cell-wrap",
     render: (row) => row.competencia || row.descricao || "-",
   },
+  ...extraColumns,
 ];
 
 const ColegiadosExternos = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canEditContent, token, user } = useAuthSession();
   const [colegiados, setColegiados] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editorError, setEditorError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
     colegiado: normalizeFilterValue(searchParams.get("colegiado")),
     orgao: normalizeFilterValue(searchParams.get("orgao")),
   });
 
+  const loadData = () => api.get("/api/colegiados?categoria=Externo").then(setColegiados);
+
   useEffect(() => {
-    api.get("/api/colegiados?categoria=Externo").then(setColegiados);
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -96,6 +106,103 @@ const ColegiadosExternos = () => {
   }, [filteredColegiados]);
 
   const compactChartData = useMemo(() => summarizeChart(chartData, 5), [chartData]);
+
+  const actionColumns = useMemo(() => {
+    if (!canEditContent) {
+      return [];
+    }
+
+    return [
+      {
+        key: "acoes",
+        label: "Acoes",
+        width: "180px",
+        render: (row) => (
+          <div className="table-row-actions">
+            <button
+              className="text-button"
+              onClick={() => {
+                setEditingItem(row);
+                setEditorError("");
+                setEditorOpen(true);
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                try {
+                  await api.put(
+                    `/api/colegiados/${row.sigla}`,
+                    { ...row, ativo: row.ativo === "Sim" ? "Nao" : "Sim" },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    },
+                  );
+                  await loadData();
+                } catch (error) {
+                  setEditorError(error.message);
+                  setEditorOpen(true);
+                }
+              }}
+              type="button"
+            >
+              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [canEditContent, token]);
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setEditorError("");
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const payload = {
+        categoria: "Externo",
+        sigla: formData.get("sigla"),
+        sigla_exibicao: formData.get("sigla_exibicao"),
+        nome: formData.get("nome"),
+        orgao: formData.get("orgao"),
+        dispositivo_legal: formData.get("dispositivo_legal"),
+        descricao: formData.get("descricao"),
+        ativo: formData.get("ativo"),
+        titular: formData.get("titular"),
+        suplente: formData.get("suplente"),
+        segundo_suplente: formData.get("segundo_suplente"),
+        processo_nomeacao: formData.get("processo_nomeacao"),
+        observacoes: formData.get("observacoes"),
+      };
+
+      const options = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      if (editingItem?.sigla) {
+        await api.put(`/api/colegiados/${editingItem.sigla}`, payload, options);
+      } else {
+        await api.post("/api/colegiados", payload, options);
+      }
+
+      await loadData();
+      setEditorOpen(false);
+      setEditingItem(null);
+    } catch (error) {
+      setEditorError(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!colegiados) {
     return <Loading label="Carregando colegiados externos..." />;
@@ -154,13 +261,112 @@ const ColegiadosExternos = () => {
       </section>
 
       <section className="content-card">
+        <div className="section-heading">
+          <div>
+            <h3>Registros externos</h3>
+            <p>Os colaboradores podem incluir e manter os vinculos externos do sistema.</p>
+          </div>
+          {canEditContent ? (
+            <button
+              className="primary-button"
+              onClick={() => {
+                setEditingItem(null);
+                setEditorError("");
+                setEditorOpen(true);
+              }}
+              type="button"
+            >
+              Adicionar colegiado externo
+            </button>
+          ) : null}
+        </div>
         <PowerBiTable
-          columns={columns}
+          columns={buildColumns(actionColumns)}
           emptyMessage="Nenhum colegiado externo encontrado para os filtros selecionados."
           rows={filteredColegiados}
           sortable={false}
         />
       </section>
+
+      {editorOpen ? (
+        <EditFormModal
+          onClose={() => {
+            setEditorOpen(false);
+            setEditingItem(null);
+          }}
+          title={editingItem ? "Editar colegiado externo" : "Adicionar colegiado externo"}
+        >
+          <form className="form-grid" onSubmit={handleSave}>
+            <label>
+              <span>Sigla</span>
+              <input defaultValue={editingItem?.sigla || ""} name="sigla" required />
+            </label>
+            <label>
+              <span>Sigla de exibicao</span>
+              <input defaultValue={editingItem?.sigla_exibicao || ""} name="sigla_exibicao" />
+            </label>
+            <label className="form-grid__full">
+              <span>Colegiado</span>
+              <input defaultValue={editingItem?.nome || ""} name="nome" required />
+            </label>
+            <label>
+              <span>Orgao</span>
+              <input defaultValue={editingItem?.orgao || ""} name="orgao" />
+            </label>
+            <label>
+              <span>Status</span>
+              <select defaultValue={editingItem?.ativo || "Sim"} name="ativo">
+                <option value="Sim">Ativo</option>
+                <option value="Nao">Inativo</option>
+              </select>
+            </label>
+            <label>
+              <span>Titular</span>
+              <input defaultValue={editingItem?.titular || ""} name="titular" />
+            </label>
+            <label>
+              <span>Suplente</span>
+              <input defaultValue={editingItem?.suplente || ""} name="suplente" />
+            </label>
+            <label>
+              <span>2º suplente</span>
+              <input defaultValue={editingItem?.segundo_suplente || ""} name="segundo_suplente" />
+            </label>
+            <label className="form-grid__full">
+              <span>Processo / ato de nomeacao</span>
+              <input
+                defaultValue={editingItem?.processo_nomeacao || ""}
+                name="processo_nomeacao"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Dispositivo legal</span>
+              <textarea
+                defaultValue={editingItem?.dispositivo_legal || ""}
+                name="dispositivo_legal"
+                rows="3"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Natureza, competencia ou finalidade</span>
+              <textarea defaultValue={editingItem?.descricao || ""} name="descricao" rows="4" />
+            </label>
+            <label className="form-grid__full">
+              <span>Observacoes</span>
+              <textarea defaultValue={editingItem?.observacoes || ""} name="observacoes" rows="3" />
+            </label>
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+              </span>
+              <button className="primary-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar colegiado externo"}
+              </button>
+            </div>
+            {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
+          </form>
+        </EditFormModal>
+      ) : null}
     </div>
   );
 };

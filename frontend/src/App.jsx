@@ -15,6 +15,7 @@ import HistoricoReunioes from "./pages/HistoricoReunioes";
 import Integrantes from "./pages/Integrantes";
 import Publicacoes from "./pages/Publicacoes";
 import { api } from "./services/api";
+import { AuthSessionProvider } from "./context/AuthSessionContext";
 
 const ADMIN_SESSION_KEY = "colegiados_mps_admin_session";
 
@@ -107,46 +108,48 @@ const App = () => {
 
   return (
     <HashRouter>
-      <div className="app-shell">
-        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <div className="app-main">
-          <Header
-            adminUser={adminSession?.user || null}
-            onLogout={handleLogout}
-            onOpenStatus={handleOpenAdmin}
-            onToggleMenu={() => setMenuOpen((current) => !current)}
+      <AuthSessionProvider session={adminSession}>
+        <div className="app-shell">
+          <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+          <div className="app-main">
+            <Header
+              adminUser={adminSession?.user || null}
+              onLogout={handleLogout}
+              onOpenStatus={handleOpenAdmin}
+              onToggleMenu={() => setMenuOpen((current) => !current)}
+            />
+            <main className="main-content">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/colegiados/internos" element={<ColegiadosInternos />} />
+                <Route
+                  path="/colegiados/internos/tipo/:tipoSlug"
+                  element={<ColegiadosInternosTipo />}
+                />
+                <Route path="/colegiados/externos" element={<ColegiadosExternos />} />
+                <Route path="/colegiados/:sigla/estado/:uf" element={<EstadoInstanciasPage />} />
+                <Route path="/colegiados/:sigla" element={<ConsultaColegiado />} />
+                <Route path="/integrantes" element={<Integrantes />} />
+                <Route path="/calendario-reunioes" element={<CalendarioReunioes />} />
+                <Route path="/historico-reunioes" element={<HistoricoReunioes />} />
+                <Route path="/publicacoes" element={<Publicacoes />} />
+              </Routes>
+            </main>
+          </div>
+          <AdminLoginModal
+            onAuthenticated={handleAuthenticated}
+            onClose={() => setLoginOpen(false)}
+            open={loginOpen}
           />
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/colegiados/internos" element={<ColegiadosInternos />} />
-              <Route
-                path="/colegiados/internos/tipo/:tipoSlug"
-                element={<ColegiadosInternosTipo />}
-              />
-              <Route path="/colegiados/externos" element={<ColegiadosExternos />} />
-              <Route path="/colegiados/:sigla/estado/:uf" element={<EstadoInstanciasPage />} />
-              <Route path="/colegiados/:sigla" element={<ConsultaColegiado />} />
-              <Route path="/integrantes" element={<Integrantes />} />
-              <Route path="/calendario-reunioes" element={<CalendarioReunioes />} />
-              <Route path="/historico-reunioes" element={<HistoricoReunioes />} />
-              <Route path="/publicacoes" element={<Publicacoes />} />
-            </Routes>
-          </main>
+          <AdminPanel
+            onClose={() => setAdminPanelOpen(false)}
+            onLogout={handleLogout}
+            open={adminPanelOpen}
+            token={adminSession?.token || ""}
+            user={adminSession?.user || null}
+          />
         </div>
-        <AdminLoginModal
-          onAuthenticated={handleAuthenticated}
-          onClose={() => setLoginOpen(false)}
-          open={loginOpen}
-        />
-        <AdminPanel
-          onClose={() => setAdminPanelOpen(false)}
-          onLogout={handleLogout}
-          open={adminPanelOpen}
-          token={adminSession?.token || ""}
-          user={adminSession?.user || null}
-        />
-      </div>
+      </AuthSessionProvider>
     </HashRouter>
   );
 };

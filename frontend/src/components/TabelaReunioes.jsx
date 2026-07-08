@@ -16,11 +16,12 @@ const columns = [
   { key: "quorum_registrado", label: "Quorum", width: "140px" },
 ];
 
-const TabelaReunioes = ({ reunioes }) => (
+const TabelaReunioes = ({ reunioes, extraColumns = [] }) => (
   <PowerBiTable
-    columns={columns}
+    columns={[...columns, ...extraColumns]}
     emptyMessage="Nenhuma reuniao encontrada para os filtros selecionados."
     rows={reunioes}
+    sortable={false}
   />
 );
 

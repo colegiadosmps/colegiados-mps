@@ -4,12 +4,20 @@ import {
   executarSincronizacaoAgora,
   listarHistoricoSincronizacoes,
 } from "../controllers/sincronizacoesController.js";
-import { requireAdminAuth } from "../middleware/adminAuthMiddleware.js";
+import {
+  requireAdminAuth,
+  requireAdminProfile,
+} from "../middleware/adminAuthMiddleware.js";
 
 const router = Router();
 
 router.get("/", listarHistoricoSincronizacoes);
-router.post("/executar", requireAdminAuth, executarSincronizacaoAgora);
-router.get("/:id", detalharSincronizacao);
+router.post(
+  "/executar",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN"),
+  executarSincronizacaoAgora,
+);
+router.get("/:id", requireAdminAuth, requireAdminProfile("ADMIN"), detalharSincronizacao);
 
 export default router;

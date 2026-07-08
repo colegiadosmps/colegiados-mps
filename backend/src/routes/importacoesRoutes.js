@@ -8,6 +8,10 @@ import {
   sincronizarGoogleDrive,
   uploadImportacao,
 } from "../controllers/importacoesController.js";
+import {
+  requireAdminAuth,
+  requireAdminProfile,
+} from "../middleware/adminAuthMiddleware.js";
 
 const uploadsDirectory = path.resolve(process.cwd(), "uploads");
 fs.mkdirSync(uploadsDirectory, { recursive: true });
@@ -24,9 +28,25 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const router = Router();
 
-router.get("/", listarImportacoes);
-router.get("/google-drive/status", obterStatusGoogleDrive);
-router.post("/google-drive/sync", sincronizarGoogleDrive);
-router.post("/upload", upload.single("arquivo"), uploadImportacao);
+router.get("/", requireAdminAuth, requireAdminProfile("ADMIN"), listarImportacoes);
+router.get(
+  "/google-drive/status",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN"),
+  obterStatusGoogleDrive,
+);
+router.post(
+  "/google-drive/sync",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN"),
+  sincronizarGoogleDrive,
+);
+router.post(
+  "/upload",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN"),
+  upload.single("arquivo"),
+  uploadImportacao,
+);
 
 export default router;

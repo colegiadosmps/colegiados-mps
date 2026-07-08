@@ -1,4 +1,5 @@
 import { all } from "../database/db.js";
+import { createMembro, updateMembro } from "../services/contentCrudService.js";
 
 export const listarMembros = async (request, response) => {
   try {
@@ -48,5 +49,46 @@ export const listarMembros = async (request, response) => {
     response.json(membros);
   } catch (error) {
     response.status(500).json({ message: error.message });
+  }
+};
+
+export const criarMembro = async (request, response) => {
+  try {
+    const membro = await createMembro({
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.status(201).json({
+      success: true,
+      message: "Membro salvo com sucesso.",
+      membro,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel salvar o membro.",
+    });
+  }
+};
+
+export const atualizarMembro = async (request, response) => {
+  try {
+    const membro = await updateMembro({
+      id: request.params.id,
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.json({
+      success: true,
+      message: "Membro atualizado com sucesso.",
+      membro,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel atualizar o membro.",
+    });
   }
 };

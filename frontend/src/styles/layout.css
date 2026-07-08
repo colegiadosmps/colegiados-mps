@@ -947,6 +947,10 @@
   flex-direction: column;
 }
 
+.app-modal--wide-editor {
+  width: min(960px, calc(100vw - 2rem));
+}
+
 .app-modal__header {
   display: flex;
   justify-content: space-between;
@@ -979,6 +983,10 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 1rem;
+}
+
+.app-modal__footer--split {
+  justify-content: space-between;
 }
 
 .modal-filters {

@@ -1,4 +1,5 @@
 import { all } from "../database/db.js";
+import { createReuniao, updateReuniao } from "../services/contentCrudService.js";
 
 export const listarReunioes = async (request, response) => {
   try {
@@ -43,5 +44,46 @@ export const listarReunioes = async (request, response) => {
     response.json(reunioes);
   } catch (error) {
     response.status(500).json({ message: error.message });
+  }
+};
+
+export const criarReuniao = async (request, response) => {
+  try {
+    const reuniao = await createReuniao({
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.status(201).json({
+      success: true,
+      message: "Reuniao salva com sucesso.",
+      reuniao,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel salvar a reuniao.",
+    });
+  }
+};
+
+export const atualizarReuniao = async (request, response) => {
+  try {
+    const reuniao = await updateReuniao({
+      id: request.params.id,
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.json({
+      success: true,
+      message: "Reuniao atualizada com sucesso.",
+      reuniao,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel atualizar a reuniao.",
+    });
   }
 };

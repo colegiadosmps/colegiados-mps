@@ -6,6 +6,7 @@ import {
   resetUserPasswordByAdmin,
   revokeSession,
 } from "../services/authService.js";
+import { logAccessEvent, logChangeEvent } from "../services/auditService.js";
 
 const extractToken = (request) => {
   const authorization = request.headers.authorization || "";
@@ -31,6 +32,11 @@ export const autenticarAdmin = async (request, response) => {
     });
 
     if (!session) {
+      await logAccessEvent({
+        evento: "LOGIN_ERRO",
+        observacao: `Tentativa de login para ${user || "usuario nao informado"}.`,
+        status: "ERRO",
+      });
       response.status(401).json({
         authorized: false,
         authenticated: false,
@@ -38,6 +44,17 @@ export const autenticarAdmin = async (request, response) => {
       });
       return;
     }
+
+    await logAccessEvent({
+      evento: "LOGIN_SUCESSO",
+      observacao: "Autenticacao concluida.",
+      user: session.user,
+    });
+    await logAccessEvent({
+      evento: "ENTROU_MODO_EDICAO",
+      observacao: "Sessao autenticada iniciada.",
+      user: session.user,
+    });
 
     response.json(buildSuccessResponse(session));
   } catch (error) {
@@ -57,6 +74,19 @@ export const logout = async (request, response) => {
 
     if (token) {
       await revokeSession(token);
+    }
+
+    if (request.adminUser) {
+      await logAccessEvent({
+        evento: "LOGOUT",
+        observacao: "Sessao encerrada pelo usuario.",
+        user: request.adminUser,
+      });
+      await logAccessEvent({
+        evento: "SAIU_MODO_EDICAO",
+        observacao: "Modo de edicao desativado.",
+        user: request.adminUser,
+      });
     }
 
     response.json({
@@ -86,6 +116,10 @@ export const me = async (request, response) => {
 };
 
 export const forgotPassword = async (_request, response) => {
+  await logAccessEvent({
+    evento: "ESQUECI_MINHA_SENHA",
+    observacao: "Solicitacao de ajuda para redefinicao de senha.",
+  });
   response.json({
     success: true,
     message:
@@ -105,6 +139,12 @@ export const changePassword = async (request, response) => {
     response.json({
       success: true,
       message: "Senha atualizada com sucesso.",
+      user,
+    });
+
+    await logAccessEvent({
+      evento: "TROCAR_SENHA",
+      observacao: "Senha alterada pelo usuario autenticado.",
       user,
     });
   } catch (error) {
@@ -130,6 +170,16 @@ export const createCollaborator = async (request, response) => {
       message:
         "Colaborador criado com sucesso. Senha inicial: C2026@mps. Troca obrigatoria no primeiro acesso.",
       user: result.user,
+    });
+
+    await logChangeEvent({
+      acao: "CRIAR_COLABORADOR",
+      modulo: "Usuarios",
+      tipoRegistro: "Usuario",
+      idRegistroAfetado: result.user.id,
+      descricaoResumida: `Colaborador ${result.user.email} criado.`,
+      dadosNovos: result.user,
+      user: request.adminUser,
     });
   } catch (error) {
     response.status(400).json({
@@ -162,6 +212,16 @@ export const resetUserPassword = async (request, response) => {
       message:
         "Senha redefinida com sucesso para C2026@mps. Troca obrigatoria no proximo acesso.",
       user: result.user,
+    });
+
+    await logChangeEvent({
+      acao: "REDEFINIR_SENHA_COLABORADOR",
+      modulo: "Usuarios",
+      tipoRegistro: "Usuario",
+      idRegistroAfetado: result.user.id,
+      descricaoResumida: `Senha do usuario ${result.user.email} redefinida pelo admin.`,
+      dadosNovos: result.user,
+      user: request.adminUser,
     });
   } catch (error) {
     response.status(400).json({

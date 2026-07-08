@@ -7,12 +7,14 @@ import {
   HiOutlineXMark,
   HiOutlineUsers,
 } from "react-icons/hi2";
+import EditFormModal from "../components/EditFormModal";
 import Loading from "../components/Loading";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
 import InstanciasColegiadasSection from "../components/InstanciasColegiadasSection";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import { useAuthSession } from "../context/AuthSessionContext";
 import {
   formatBooleanStatus,
   formatColegiadoDisplayName,
@@ -45,11 +47,21 @@ const calendarioColumns = [
 ];
 
 const publicacoesColumns = [
-  { key: "nome_pasta", label: "Arquivo/Pasta", width: "220px" },
+  { key: "tipo", label: "Tipo", width: "140px" },
+  { key: "numero", label: "Numero", width: "120px" },
+  { key: "data_publicacao", label: "Data", width: "120px" },
+  { key: "ano", label: "Ano", width: "100px" },
+  {
+    key: "assunto",
+    label: "Assunto",
+    width: "260px",
+    className: "cell-wrap",
+    render: (row) => row.assunto || row.nome_pasta || "-",
+  },
   {
     key: "link_pasta",
-    label: "URL_OU_CAMINHO",
-    width: "340px",
+    label: "Link",
+    width: "280px",
     className: "cell-url cell-wrap",
     render: (row) =>
       row.link_pasta ? (
@@ -60,6 +72,7 @@ const publicacoesColumns = [
         "-"
       ),
   },
+  { key: "status", label: "Status", width: "120px" },
 ];
 
 const statItems = (colegiado, instanciasCount) =>
@@ -97,10 +110,16 @@ const ModalSection = ({ children, onClose, title }) => (
 
 const ConsultaColegiado = () => {
   const { sigla } = useParams();
+  const { canEditContent, token, user } = useAuthSession();
   const [colegiado, setColegiado] = useState(null);
   const [instanciasCount, setInstanciasCount] = useState(0);
   const [error, setError] = useState("");
   const [activeModal, setActiveModal] = useState("");
+  const [editorError, setEditorError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [contentEditor, setContentEditor] = useState({ type: "", record: null });
+  const [contentEditorError, setContentEditorError] = useState("");
+  const [contentSaving, setContentSaving] = useState(false);
   const [memberFilters, setMemberFilters] = useState({
     search: "",
     papel: ALL_VALUE,
@@ -114,12 +133,22 @@ const ConsultaColegiado = () => {
     horario: "",
     status: "",
   });
+  const [publicationFilters, setPublicationFilters] = useState({
+    tipo: "",
+    numero: "",
+    data: "",
+    ano: "",
+    assunto: "",
+  });
 
-  useEffect(() => {
+  const loadColegiado = () =>
     api
       .get(`/api/colegiados/${sigla}`)
       .then(setColegiado)
       .catch((requestError) => setError(requestError.message));
+
+  useEffect(() => {
+    loadColegiado();
   }, [sigla]);
 
   useEffect(() => {
@@ -204,6 +233,280 @@ const ConsultaColegiado = () => {
       );
     });
   }, [calendarFilters, colegiado?.reunioes]);
+  const filteredPublicacoes = useMemo(() => {
+    if (!colegiado?.publicacoes) {
+      return [];
+    }
+
+    const tipoSearch = publicationFilters.tipo.trim().toLowerCase();
+    const numeroSearch = publicationFilters.numero.trim().toLowerCase();
+    const dataSearch = publicationFilters.data.trim().toLowerCase();
+    const anoSearch = publicationFilters.ano.trim().toLowerCase();
+    const assuntoSearch = publicationFilters.assunto.trim().toLowerCase();
+
+    return colegiado.publicacoes.filter((item) => {
+      const tipoValue = String(item.tipo || "-").toLowerCase();
+      const numeroValue = String(item.numero || "-").toLowerCase();
+      const dataValue = String(formatDate(item.data_publicacao) || "-").toLowerCase();
+      const anoValue = String(item.ano || "-").toLowerCase();
+      const assuntoValue = String(item.assunto || item.nome_pasta || "-").toLowerCase();
+
+      return (
+        (!tipoSearch || tipoValue.includes(tipoSearch)) &&
+        (!numeroSearch || numeroValue.includes(numeroSearch)) &&
+        (!dataSearch || dataValue.includes(dataSearch)) &&
+        (!anoSearch || anoValue.includes(anoSearch)) &&
+        (!assuntoSearch || assuntoValue.includes(assuntoSearch))
+      );
+    });
+  }, [colegiado?.publicacoes, publicationFilters]);
+
+  const memberActionColumns = useMemo(() => {
+    if (!canEditContent) {
+      return [];
+    }
+
+    return [
+      {
+        key: "acoes",
+        label: "Acoes",
+        width: "180px",
+        render: (row) => (
+          <div className="table-row-actions">
+            <button
+              className="text-button"
+              onClick={() => {
+                setContentEditor({ type: "membro", record: row });
+                setContentEditorError("");
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                try {
+                  await api.put(
+                    `/api/membros/${row.id}`,
+                    { ...row, ativo: row.ativo === "Sim" ? "Nao" : "Sim" },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    },
+                  );
+                  await loadColegiado();
+                } catch (requestError) {
+                  setContentEditorError(requestError.message);
+                  setContentEditor({ type: "membro", record: row });
+                }
+              }}
+              type="button"
+            >
+              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [canEditContent, token]);
+
+  const meetingActionColumns = useMemo(() => {
+    if (!canEditContent) {
+      return [];
+    }
+
+    return [
+      {
+        key: "acoes",
+        label: "Acoes",
+        width: "180px",
+        render: (row) => (
+          <div className="table-row-actions">
+            <button
+              className="text-button"
+              onClick={() => {
+                setContentEditor({ type: "reuniao", record: row });
+                setContentEditorError("");
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                try {
+                  await api.put(
+                    `/api/reunioes/${row.id}`,
+                    {
+                      ...row,
+                      status_reuniao:
+                        row.status_reuniao === "Cancelada" ? "Planejada" : "Cancelada",
+                    },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    },
+                  );
+                  await loadColegiado();
+                } catch (requestError) {
+                  setContentEditorError(requestError.message);
+                  setContentEditor({ type: "reuniao", record: row });
+                }
+              }}
+              type="button"
+            >
+              {row.status_reuniao === "Cancelada" ? "Reativar" : "Cancelar"}
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [canEditContent, token]);
+
+  const publicationActionColumns = useMemo(() => {
+    if (!canEditContent) {
+      return [];
+    }
+
+    return [
+      {
+        key: "acoes",
+        label: "Acoes",
+        width: "180px",
+        render: (row) => (
+          <div className="table-row-actions">
+            <button
+              className="text-button"
+              onClick={() => {
+                setContentEditor({ type: "publicacao", record: row });
+                setContentEditorError("");
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                try {
+                  await api.put(
+                    `/api/publicacoes/${row.id}`,
+                    { ...row, status: row.status === "Inativo" ? "Ativo" : "Inativo" },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    },
+                  );
+                  await loadColegiado();
+                } catch (requestError) {
+                  setContentEditorError(requestError.message);
+                  setContentEditor({ type: "publicacao", record: row });
+                }
+              }}
+              type="button"
+            >
+              {row.status === "Inativo" ? "Reativar" : "Inativar"}
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [canEditContent, token]);
+
+  const handleSaveContentEditor = async (event) => {
+    event.preventDefault();
+    setContentSaving(true);
+    setContentEditorError("");
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const options = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      if (contentEditor.type === "membro") {
+        const payload = {
+          nome_membro: formData.get("nome_membro"),
+          sigla_colegiado: colegiado.sigla,
+          unidade: formData.get("unidade"),
+          tipo_vinculo: formData.get("tipo_vinculo"),
+          papel: formData.get("papel"),
+          detalhamento_papel: formData.get("detalhamento_papel"),
+          inicio_vigencia: formData.get("inicio_vigencia"),
+          fim_vigencia: formData.get("fim_vigencia"),
+          email_institucional: formData.get("email_institucional"),
+          telefone_institucional: formData.get("telefone_institucional"),
+          ativo: formData.get("ativo"),
+          observacao: formData.get("observacao"),
+          sigla_colegiado_pai: colegiado.sigla_colegiado_pai || "",
+        };
+
+        if (contentEditor.record?.id) {
+          await api.put(`/api/membros/${contentEditor.record.id}`, payload, options);
+        } else {
+          await api.post("/api/membros", payload, options);
+        }
+      }
+
+      if (contentEditor.type === "reuniao") {
+        const payload = {
+          id_reuniao: formData.get("id_reuniao"),
+          sigla_colegiado: colegiado.sigla,
+          data_reuniao: formData.get("data_reuniao"),
+          hora: formData.get("hora"),
+          local: formData.get("local"),
+          classificacao_pauta: formData.get("classificacao_pauta"),
+          descricao_pauta: formData.get("descricao_pauta"),
+          texto_ata: formData.get("texto_ata"),
+          status_reuniao: formData.get("status_reuniao"),
+          quorum_registrado: formData.get("quorum_registrado"),
+          link_ata: formData.get("link_ata"),
+          observacao: formData.get("observacao"),
+        };
+
+        if (contentEditor.record?.id) {
+          await api.put(`/api/reunioes/${contentEditor.record.id}`, payload, options);
+        } else {
+          await api.post("/api/reunioes", payload, options);
+        }
+      }
+
+      if (contentEditor.type === "publicacao") {
+        const payload = {
+          sigla_colegiado: colegiado.sigla,
+          nome_pasta: formData.get("nome_pasta"),
+          tipo: formData.get("tipo"),
+          numero: formData.get("numero"),
+          data_publicacao: formData.get("data_publicacao"),
+          ano: formData.get("ano"),
+          assunto: formData.get("assunto"),
+          link_pasta: formData.get("link_pasta"),
+          status: formData.get("status"),
+          observacao: formData.get("observacao"),
+        };
+
+        if (contentEditor.record?.id) {
+          await api.put(`/api/publicacoes/${contentEditor.record.id}`, payload, options);
+        } else {
+          await api.post("/api/publicacoes", payload, options);
+        }
+      }
+
+      await loadColegiado();
+      setContentEditor({ type: "", record: null });
+    } catch (requestError) {
+      setContentEditorError(requestError.message);
+    } finally {
+      setContentSaving(false);
+    }
+  };
 
   if (error) {
     return <div className="empty-state">{error}</div>;
@@ -287,6 +590,32 @@ const ConsultaColegiado = () => {
         </button>
       </section>
 
+      {canEditContent ? (
+        <section className="content-card">
+          <div className="section-heading">
+            <div>
+              <h3>Modo edicao do colegiado</h3>
+              <p>O perfil autenticado pode manter os dados estruturais e criar vinculacoes.</p>
+            </div>
+            <div className="table-row-actions">
+              <button className="primary-button" onClick={() => setActiveModal("editar-colegiado")} type="button">
+                Editar colegiado
+              </button>
+              {colegiado.categoria !== "Externo" ? (
+                <>
+                  <button className="secondary-button" onClick={() => setActiveModal("novo-filho")} type="button">
+                    Criar colegiado filho
+                  </button>
+                  <button className="secondary-button" onClick={() => setActiveModal("nova-instancia")} type="button">
+                    Criar instancia colegiada
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <InstanciasColegiadasSection sigla={colegiado.sigla} />
 
       {activeModal === "membros" ? (
@@ -294,6 +623,24 @@ const ConsultaColegiado = () => {
           onClose={() => setActiveModal("")}
           title={`Membros de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
         >
+          {canEditContent ? (
+            <div className="section-heading">
+              <div>
+                <h3>Edicao de membros</h3>
+                <p>O perfil autenticado pode incluir, editar e inativar membros deste colegiado.</p>
+              </div>
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setContentEditor({ type: "membro", record: null });
+                  setContentEditorError("");
+                }}
+                type="button"
+              >
+                Adicionar membro
+              </button>
+            </div>
+          ) : null}
           <div className="modal-filters">
             <FilterBox label="Busca">
               <input
@@ -352,10 +699,12 @@ const ConsultaColegiado = () => {
                   </span>
                 ),
               },
+              ...memberActionColumns,
             ]}
             emptyMessage="Nenhum membro encontrado para este colegiado."
             rows={filteredMembers}
             rowsPerPageOptions={[10, 25, 50]}
+            sortable={false}
           />
         </ModalSection>
       ) : null}
@@ -365,6 +714,24 @@ const ConsultaColegiado = () => {
           onClose={() => setActiveModal("")}
           title={`Calendario de Reunioes de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
         >
+          {canEditContent ? (
+            <div className="section-heading">
+              <div>
+                <h3>Edicao de reunioes</h3>
+                <p>O perfil autenticado pode cadastrar, editar e cancelar reunioes deste colegiado.</p>
+              </div>
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setContentEditor({ type: "reuniao", record: null });
+                  setContentEditorError("");
+                }}
+                type="button"
+              >
+                Adicionar reuniao
+              </button>
+            </div>
+          ) : null}
           <div className="modal-filters">
             <FilterBox label="Reuniao">
               <input
@@ -428,7 +795,7 @@ const ConsultaColegiado = () => {
             </button>
           </div>
           <PowerBiTable
-            columns={calendarioColumns}
+            columns={[...calendarioColumns, ...meetingActionColumns]}
             emptyMessage="Nenhuma reuniao encontrada para este colegiado."
             rows={filteredCalendar}
             sortable={false}
@@ -441,12 +808,567 @@ const ConsultaColegiado = () => {
           onClose={() => setActiveModal("")}
           title={`Publicacoes de ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`}
         >
+          {canEditContent ? (
+            <div className="section-heading">
+              <div>
+                <h3>Edicao de publicacoes</h3>
+                <p>O perfil autenticado pode incluir, editar e inativar publicacoes deste colegiado.</p>
+              </div>
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setContentEditor({ type: "publicacao", record: null });
+                  setContentEditorError("");
+                }}
+                type="button"
+              >
+                Adicionar publicacao
+              </button>
+            </div>
+          ) : null}
+          <div className="modal-filters">
+            <FilterBox label="Tipo">
+              <input
+                onChange={(event) =>
+                  setPublicationFilters((current) => ({ ...current, tipo: event.target.value }))
+                }
+                placeholder="Buscar tipo"
+                value={publicationFilters.tipo}
+              />
+            </FilterBox>
+            <FilterBox label="Numero">
+              <input
+                onChange={(event) =>
+                  setPublicationFilters((current) => ({ ...current, numero: event.target.value }))
+                }
+                placeholder="Buscar numero"
+                value={publicationFilters.numero}
+              />
+            </FilterBox>
+            <FilterBox label="Data">
+              <input
+                onChange={(event) =>
+                  setPublicationFilters((current) => ({ ...current, data: event.target.value }))
+                }
+                placeholder="dd/mm/aaaa"
+                value={publicationFilters.data}
+              />
+            </FilterBox>
+            <FilterBox label="Ano">
+              <input
+                onChange={(event) =>
+                  setPublicationFilters((current) => ({ ...current, ano: event.target.value }))
+                }
+                placeholder="2026"
+                value={publicationFilters.ano}
+              />
+            </FilterBox>
+            <FilterBox label="Assunto">
+              <input
+                onChange={(event) =>
+                  setPublicationFilters((current) => ({ ...current, assunto: event.target.value }))
+                }
+                placeholder="Buscar assunto"
+                value={publicationFilters.assunto}
+              />
+            </FilterBox>
+            <button
+              className="clear-filters-button"
+              onClick={() =>
+                setPublicationFilters({
+                  tipo: "",
+                  numero: "",
+                  data: "",
+                  ano: "",
+                  assunto: "",
+                })
+              }
+              type="button"
+            >
+              Limpar
+            </button>
+          </div>
           <PowerBiTable
-            columns={publicacoesColumns}
+            columns={[
+              ...publicacoesColumns,
+              ...publicationActionColumns,
+            ]}
             emptyMessage="Nenhuma publicacao encontrada para este colegiado."
-            rows={colegiado.publicacoes || []}
+            rows={filteredPublicacoes}
+            sortable={false}
           />
         </ModalSection>
+      ) : null}
+
+      {contentEditor.type ? (
+        <EditFormModal
+          onClose={() => {
+            setContentEditor({ type: "", record: null });
+            setContentEditorError("");
+          }}
+          title={
+            contentEditor.type === "membro"
+              ? contentEditor.record
+                ? "Editar membro"
+                : "Adicionar membro"
+              : contentEditor.type === "reuniao"
+                ? contentEditor.record
+                  ? "Editar reuniao"
+                  : "Adicionar reuniao"
+                : contentEditor.record
+                  ? "Editar publicacao"
+                  : "Adicionar publicacao"
+          }
+        >
+          <form className="form-grid" onSubmit={handleSaveContentEditor}>
+            {contentEditor.type === "membro" ? (
+              <>
+                <label>
+                  <span>Nome</span>
+                  <input
+                    defaultValue={contentEditor.record?.nome_membro || ""}
+                    name="nome_membro"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Papel</span>
+                  <input defaultValue={contentEditor.record?.papel || ""} name="papel" />
+                </label>
+                <label>
+                  <span>Vinculo</span>
+                  <input
+                    defaultValue={contentEditor.record?.tipo_vinculo || ""}
+                    name="tipo_vinculo"
+                  />
+                </label>
+                <label>
+                  <span>Unidade</span>
+                  <input defaultValue={contentEditor.record?.unidade || ""} name="unidade" />
+                </label>
+                <label>
+                  <span>Inicio</span>
+                  <input
+                    defaultValue={contentEditor.record?.inicio_vigencia || ""}
+                    name="inicio_vigencia"
+                  />
+                </label>
+                <label>
+                  <span>Fim</span>
+                  <input
+                    defaultValue={contentEditor.record?.fim_vigencia || ""}
+                    name="fim_vigencia"
+                  />
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input
+                    defaultValue={contentEditor.record?.email_institucional || ""}
+                    name="email_institucional"
+                    type="email"
+                  />
+                </label>
+                <label>
+                  <span>Telefone</span>
+                  <input
+                    defaultValue={contentEditor.record?.telefone_institucional || ""}
+                    name="telefone_institucional"
+                  />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select defaultValue={contentEditor.record?.ativo || "Sim"} name="ativo">
+                    <option value="Sim">Ativo</option>
+                    <option value="Nao">Inativo</option>
+                  </select>
+                </label>
+                <label className="form-grid__full">
+                  <span>Detalhamento</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.detalhamento_papel || ""}
+                    name="detalhamento_papel"
+                    rows="3"
+                  />
+                </label>
+                <label className="form-grid__full">
+                  <span>Observacao</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.observacao || ""}
+                    name="observacao"
+                    rows="3"
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {contentEditor.type === "reuniao" ? (
+              <>
+                <label>
+                  <span>Reuniao</span>
+                  <input
+                    defaultValue={contentEditor.record?.id_reuniao || ""}
+                    name="id_reuniao"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Data</span>
+                  <input
+                    defaultValue={contentEditor.record?.data_reuniao || ""}
+                    name="data_reuniao"
+                  />
+                </label>
+                <label>
+                  <span>Horario</span>
+                  <input defaultValue={contentEditor.record?.hora || ""} name="hora" />
+                </label>
+                <label>
+                  <span>Local</span>
+                  <input defaultValue={contentEditor.record?.local || ""} name="local" />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    defaultValue={contentEditor.record?.status_reuniao || "Planejada"}
+                    name="status_reuniao"
+                  >
+                    <option value="Planejada">Planejada</option>
+                    <option value="Realizada">Realizada</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Quorum</span>
+                  <input
+                    defaultValue={contentEditor.record?.quorum_registrado || ""}
+                    name="quorum_registrado"
+                  />
+                </label>
+                <label>
+                  <span>Classificacao da pauta</span>
+                  <input
+                    defaultValue={contentEditor.record?.classificacao_pauta || ""}
+                    name="classificacao_pauta"
+                  />
+                </label>
+                <label>
+                  <span>Link da ata</span>
+                  <input defaultValue={contentEditor.record?.link_ata || ""} name="link_ata" />
+                </label>
+                <label className="form-grid__full">
+                  <span>Descricao da pauta</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.descricao_pauta || ""}
+                    name="descricao_pauta"
+                    rows="3"
+                  />
+                </label>
+                <label className="form-grid__full">
+                  <span>Texto da ata</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.texto_ata || ""}
+                    name="texto_ata"
+                    rows="4"
+                  />
+                </label>
+                <label className="form-grid__full">
+                  <span>Observacao</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.observacao || ""}
+                    name="observacao"
+                    rows="3"
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {contentEditor.type === "publicacao" ? (
+              <>
+                <label>
+                  <span>Tipo</span>
+                  <select defaultValue={contentEditor.record?.tipo || "Resolucao"} name="tipo">
+                    <option value="Decreto">Decreto</option>
+                    <option value="Despacho">Despacho</option>
+                    <option value="Despacho numerado">Despacho numerado</option>
+                    <option value="Memorando">Memorando</option>
+                    <option value="Minuta">Minuta</option>
+                    <option value="Nota Tecnica">Nota Tecnica</option>
+                    <option value="Oficio">Oficio</option>
+                    <option value="Resolucao">Resolucao</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Numero</span>
+                  <input defaultValue={contentEditor.record?.numero || ""} name="numero" />
+                </label>
+                <label>
+                  <span>Data</span>
+                  <input
+                    defaultValue={contentEditor.record?.data_publicacao || ""}
+                    name="data_publicacao"
+                  />
+                </label>
+                <label>
+                  <span>Ano</span>
+                  <input defaultValue={contentEditor.record?.ano || ""} name="ano" />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select defaultValue={contentEditor.record?.status || "Ativo"} name="status">
+                    <option value="Ativo">Ativo</option>
+                    <option value="Inativo">Inativo</option>
+                  </select>
+                </label>
+                <label className="form-grid__full">
+                  <span>Titulo</span>
+                  <input
+                    defaultValue={contentEditor.record?.nome_pasta || ""}
+                    name="nome_pasta"
+                    required
+                  />
+                </label>
+                <label className="form-grid__full">
+                  <span>Assunto</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.assunto || ""}
+                    name="assunto"
+                    rows="3"
+                  />
+                </label>
+                <label className="form-grid__full">
+                  <span>Link</span>
+                  <input defaultValue={contentEditor.record?.link_pasta || ""} name="link_pasta" />
+                </label>
+                <label className="form-grid__full">
+                  <span>Observacao</span>
+                  <textarea
+                    defaultValue={contentEditor.record?.observacao || ""}
+                    name="observacao"
+                    rows="3"
+                  />
+                </label>
+              </>
+            ) : null}
+
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+              </span>
+              <button className="primary-button" disabled={contentSaving} type="submit">
+                {contentSaving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            {contentEditorError ? (
+              <div className="inline-message danger-text">{contentEditorError}</div>
+            ) : null}
+          </form>
+        </EditFormModal>
+      ) : null}
+
+      {["editar-colegiado", "novo-filho", "nova-instancia"].includes(activeModal) ? (
+        <EditFormModal
+          onClose={() => {
+            setActiveModal("");
+            setEditorError("");
+          }}
+          title={
+            activeModal === "editar-colegiado"
+              ? "Editar colegiado"
+              : activeModal === "novo-filho"
+                ? "Criar colegiado filho"
+                : "Criar instancia colegiada"
+          }
+        >
+          <form
+            className="form-grid"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setSaving(true);
+              setEditorError("");
+
+              try {
+                const formData = new FormData(event.currentTarget);
+                const payload = {
+                  categoria: "Interno",
+                  sigla: activeModal === "editar-colegiado" ? colegiado.sigla : formData.get("sigla"),
+                  sigla_exibicao: formData.get("sigla_exibicao"),
+                  nome: formData.get("nome"),
+                  tipo:
+                    activeModal === "nova-instancia"
+                      ? "Instancia colegiada"
+                      : formData.get("tipo"),
+                  sigla_colegiado_pai:
+                    activeModal === "editar-colegiado"
+                      ? formData.get("sigla_colegiado_pai")
+                      : colegiado.sigla,
+                  unidade: formData.get("unidade"),
+                  sigla_unidade_pai: formData.get("sigla_unidade_pai"),
+                  ato_criacao: formData.get("ato_criacao"),
+                  data_instituicao: formData.get("data_instituicao"),
+                  data_termino: formData.get("data_termino"),
+                  qtd_min_reunioes_anuais: formData.get("qtd_min_reunioes_anuais"),
+                  regra_quorum: formData.get("regra_quorum"),
+                  competencia: formData.get("competencia"),
+                  observacoes: formData.get("observacoes"),
+                  ativo: formData.get("ativo"),
+                  municipio: formData.get("municipio"),
+                  uf: formData.get("uf"),
+                  estado: formData.get("estado"),
+                };
+
+                const options = {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                };
+
+                if (activeModal === "editar-colegiado") {
+                  await api.put(`/api/colegiados/${colegiado.sigla}`, payload, options);
+                } else {
+                  await api.post("/api/colegiados", payload, options);
+                }
+
+                await loadColegiado();
+                setActiveModal("");
+              } catch (requestError) {
+                setEditorError(requestError.message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {activeModal !== "editar-colegiado" ? (
+              <label>
+                <span>Sigla</span>
+                <input name="sigla" required />
+              </label>
+            ) : null}
+            <label>
+              <span>Sigla de exibicao</span>
+              <input
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.sigla_exibicao || "" : ""}
+                name="sigla_exibicao"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Nome</span>
+              <input
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.nome || "" : ""}
+                name="nome"
+                required
+              />
+            </label>
+            {activeModal !== "nova-instancia" ? (
+              <label>
+                <span>Tipo</span>
+                <select defaultValue={activeModal === "editar-colegiado" ? colegiado.tipo || "Conselho" : "Conselho"} name="tipo">
+                  <option value="Camara">Camara</option>
+                  <option value="Comite">Comite</option>
+                  <option value="Conselho">Conselho</option>
+                  <option value="Grupo de Trabalho">Grupo de Trabalho</option>
+                  <option value="Subcomite">Subcomite</option>
+                </select>
+              </label>
+            ) : null}
+            <label>
+              <span>Status</span>
+              <select defaultValue={activeModal === "editar-colegiado" ? colegiado.ativo || "Sim" : "Sim"} name="ativo">
+                <option value="Sim">Ativo</option>
+                <option value="Nao">Inativo</option>
+              </select>
+            </label>
+            <label>
+              <span>UF</span>
+              <input defaultValue="" name="uf" placeholder="SP" />
+            </label>
+            <label>
+              <span>Estado</span>
+              <input defaultValue="" name="estado" placeholder="Sao Paulo" />
+            </label>
+            <label className="form-grid__full">
+              <span>Municipio</span>
+              <input defaultValue="" name="municipio" placeholder="Sao Paulo" />
+            </label>
+            <label>
+              <span>Unidade</span>
+              <input defaultValue={activeModal === "editar-colegiado" ? colegiado.unidade || "" : ""} name="unidade" />
+            </label>
+            <label>
+              <span>Sigla da unidade pai</span>
+              <input
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.sigla_unidade_pai || "" : ""}
+                name="sigla_unidade_pai"
+              />
+            </label>
+            <label>
+              <span>Data de instituicao</span>
+              <input
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.data_instituicao || "" : ""}
+                name="data_instituicao"
+              />
+            </label>
+            <label>
+              <span>Data de termino</span>
+              <input
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.data_termino || "" : ""}
+                name="data_termino"
+              />
+            </label>
+            <label>
+              <span>Quantidade minima de reunioes</span>
+              <input
+                defaultValue={
+                  activeModal === "editar-colegiado" ? colegiado.qtd_min_reunioes_anuais || "" : ""
+                }
+                name="qtd_min_reunioes_anuais"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Ato de criacao</span>
+              <textarea
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.ato_criacao || "" : ""}
+                name="ato_criacao"
+                rows="3"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Competencias</span>
+              <textarea
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.competencia || "" : ""}
+                name="competencia"
+                rows="4"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Regra de quorum</span>
+              <textarea
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.regra_quorum || "" : ""}
+                name="regra_quorum"
+                rows="3"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Observacoes</span>
+              <textarea
+                defaultValue={activeModal === "editar-colegiado" ? colegiado.observacoes || "" : ""}
+                name="observacoes"
+                rows="3"
+              />
+            </label>
+            {activeModal === "editar-colegiado" ? (
+              <input defaultValue={colegiado.sigla_colegiado_pai || ""} name="sigla_colegiado_pai" type="hidden" />
+            ) : null}
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+              </span>
+              <button className="primary-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
+          </form>
+        </EditFormModal>
       ) : null}
     </div>
   );

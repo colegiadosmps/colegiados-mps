@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS membros (
   nome_membro TEXT NOT NULL,
   sigla_colegiado TEXT NOT NULL,
   sigla_colegiado_pai TEXT,
+  unidade TEXT,
   matricula TEXT,
   email_institucional TEXT,
   telefone_institucional TEXT,
@@ -41,8 +42,13 @@ CREATE TABLE IF NOT EXISTS membros (
   inicio_vigencia TEXT,
   fim_vigencia TEXT,
   ativo TEXT,
+  observacao TEXT,
   data_base TEXT,
   arquivo_origem TEXT,
+  criado_em_brasilia TEXT,
+  criado_por TEXT,
+  atualizado_em_brasilia TEXT,
+  atualizado_por TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,8 +67,14 @@ CREATE TABLE IF NOT EXISTS reunioes (
   texto_ata TEXT,
   status_reuniao TEXT,
   quorum_registrado TEXT,
+  link_ata TEXT,
+  observacao TEXT,
   data_base TEXT,
   arquivo_origem TEXT,
+  criado_em_brasilia TEXT,
+  criado_por TEXT,
+  atualizado_em_brasilia TEXT,
+  atualizado_por TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -73,8 +85,19 @@ CREATE TABLE IF NOT EXISTS pastas_publicacoes (
   nome_pasta TEXT NOT NULL,
   link_pasta TEXT NOT NULL,
   drive_folder_id TEXT,
+  tipo TEXT,
+  numero TEXT,
+  data_publicacao TEXT,
+  ano TEXT,
+  assunto TEXT,
+  status TEXT DEFAULT 'Ativo',
+  observacao TEXT,
   data_base TEXT,
   ativo TEXT DEFAULT 'Sim',
+  criado_em_brasilia TEXT,
+  criado_por TEXT,
+  atualizado_em_brasilia TEXT,
+  atualizado_por TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -149,6 +172,42 @@ CREATE TABLE IF NOT EXISTS usuarios_admin (
   ultimo_login_em TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auditoria_acessos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  data_hora_brasilia TEXT NOT NULL,
+  usuario_id TEXT,
+  usuario_nome TEXT,
+  usuario_email TEXT,
+  perfil TEXT,
+  evento TEXT NOT NULL,
+  origem TEXT,
+  status TEXT,
+  observacao TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS auditoria_alteracoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  data_hora_brasilia TEXT NOT NULL,
+  usuario_id TEXT,
+  usuario_nome TEXT,
+  usuario_email TEXT,
+  perfil TEXT,
+  acao TEXT NOT NULL,
+  modulo TEXT NOT NULL,
+  colegiado_pai TEXT,
+  colegiado_alvo TEXT,
+  tipo_registro TEXT,
+  id_registro_afetado TEXT,
+  descricao_resumida TEXT,
+  dados_anteriores TEXT,
+  dados_novos TEXT,
+  origem TEXT,
+  status TEXT,
+  observacao TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS auth_sessions (

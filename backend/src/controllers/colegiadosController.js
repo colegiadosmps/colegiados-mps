@@ -4,6 +4,7 @@ import {
   getHierarchyByParent,
   getHierarchyByParentAndUf,
 } from "../services/hierarquiaService.js";
+import { createColegiado, updateColegiado } from "../services/contentCrudService.js";
 import { normalizeKey } from "../utils/formatters.js";
 
 const formatInstanciaPayload = (row) => ({
@@ -268,5 +269,46 @@ export const obterColegiadoPorSigla = async (request, response) => {
     });
   } catch (error) {
     response.status(500).json({ message: error.message });
+  }
+};
+
+export const criarColegiado = async (request, response) => {
+  try {
+    const colegiado = await createColegiado({
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.status(201).json({
+      success: true,
+      message: "Colegiado salvo com sucesso.",
+      colegiado,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel salvar o colegiado.",
+    });
+  }
+};
+
+export const atualizarColegiado = async (request, response) => {
+  try {
+    const colegiado = await updateColegiado({
+      currentSigla: request.params.sigla,
+      payload: request.body || {},
+      user: request.adminUser,
+    });
+
+    response.json({
+      success: true,
+      message: "Colegiado atualizado com sucesso.",
+      colegiado,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel atualizar o colegiado.",
+    });
   }
 };

@@ -3,6 +3,8 @@ import { HiOutlineCog6Tooth } from "react-icons/hi2";
 
 const Header = ({ adminUser, onLogout, onOpenStatus, onToggleMenu }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const isCollaborator =
+    String(adminUser?.perfil || "").toUpperCase() === "COLABORADOR";
 
   return (
     <header className="topbar">
@@ -39,7 +41,7 @@ const Header = ({ adminUser, onLogout, onOpenStatus, onToggleMenu }) => {
         ) : null}
 
         <button
-          aria-label="Abrir acesso administrativo"
+          aria-label={isCollaborator ? "Abrir minha conta" : "Abrir acesso administrativo"}
           className="status-button"
           onClick={onOpenStatus}
           type="button"

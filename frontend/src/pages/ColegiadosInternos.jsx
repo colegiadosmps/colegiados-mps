@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { HiOutlineClipboardDocumentList, HiOutlineFolderOpen } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
@@ -61,14 +63,20 @@ const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canEditContent, token, user } = useAuthSession();
   const [colegiados, setColegiados] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorError, setEditorError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
     tipo: normalizeFilterValue(searchParams.get("tipo")),
     sigla: normalizeFilterValue(searchParams.get("sigla")),
   });
 
+  const loadData = () => api.get("/api/colegiados?categoria=Interno").then(setColegiados);
+
   useEffect(() => {
-    api.get("/api/colegiados?categoria=Interno").then(setColegiados);
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -154,13 +162,27 @@ const ColegiadosInternos = () => {
       />
 
       <section className="content-card">
-        <MetricCard
-          caption="Categorias filtradas"
-          icon={HiOutlineFolderOpen}
-          label="Tipos de colegiado"
-          tone="blue"
-          value={grouped.length}
-        />
+        <div className="section-heading">
+          <MetricCard
+            caption="Categorias filtradas"
+            icon={HiOutlineFolderOpen}
+            label="Tipos de colegiado"
+            tone="blue"
+            value={grouped.length}
+          />
+          {canEditContent ? (
+            <button
+              className="primary-button"
+              onClick={() => {
+                setEditorError("");
+                setEditorOpen(true);
+              }}
+              type="button"
+            >
+              Novo colegiado interno
+            </button>
+          ) : null}
+        </div>
       </section>
 
       <section className="type-summary-grid">
@@ -185,6 +207,114 @@ const ColegiadosInternos = () => {
           <div className="empty-state">Nenhum colegiado interno encontrado para os filtros selecionados.</div>
         ) : null}
       </section>
+
+      {editorOpen ? (
+        <EditFormModal onClose={() => setEditorOpen(false)} title="Adicionar colegiado interno">
+          <form
+            className="form-grid"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setSaving(true);
+              setEditorError("");
+
+              try {
+                const formData = new FormData(event.currentTarget);
+                await api.post(
+                  "/api/colegiados",
+                  {
+                    categoria: "Interno",
+                    sigla: formData.get("sigla"),
+                    sigla_exibicao: formData.get("sigla_exibicao"),
+                    nome: formData.get("nome"),
+                    tipo: formData.get("tipo"),
+                    ato_criacao: formData.get("ato_criacao"),
+                    data_instituicao: formData.get("data_instituicao"),
+                    regra_quorum: formData.get("regra_quorum"),
+                    qtd_min_reunioes_anuais: formData.get("qtd_min_reunioes_anuais"),
+                    competencia: formData.get("competencia"),
+                    observacoes: formData.get("observacoes"),
+                    ativo: formData.get("ativo"),
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                );
+                await loadData();
+                setEditorOpen(false);
+              } catch (error) {
+                setEditorError(error.message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <label>
+              <span>Sigla</span>
+              <input name="sigla" required />
+            </label>
+            <label>
+              <span>Sigla de exibicao</span>
+              <input name="sigla_exibicao" />
+            </label>
+            <label className="form-grid__full">
+              <span>Nome</span>
+              <input name="nome" required />
+            </label>
+            <label>
+              <span>Tipo</span>
+              <select defaultValue="Conselho" name="tipo">
+                <option value="Camara">Camara</option>
+                <option value="Comite">Comite</option>
+                <option value="Conselho">Conselho</option>
+                <option value="Grupo de Trabalho">Grupo de Trabalho</option>
+                <option value="Subcomite">Subcomite</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select defaultValue="Sim" name="ativo">
+                <option value="Sim">Ativo</option>
+                <option value="Nao">Inativo</option>
+              </select>
+            </label>
+            <label>
+              <span>Data de instituicao</span>
+              <input name="data_instituicao" />
+            </label>
+            <label>
+              <span>Quantidade minima de reunioes</span>
+              <input name="qtd_min_reunioes_anuais" />
+            </label>
+            <label className="form-grid__full">
+              <span>Ato de criacao</span>
+              <textarea name="ato_criacao" rows="3" />
+            </label>
+            <label className="form-grid__full">
+              <span>Competencias</span>
+              <textarea name="competencia" rows="4" />
+            </label>
+            <label className="form-grid__full">
+              <span>Regra de quorum</span>
+              <textarea name="regra_quorum" rows="3" />
+            </label>
+            <label className="form-grid__full">
+              <span>Observacoes</span>
+              <textarea name="observacoes" rows="3" />
+            </label>
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+              </span>
+              <button className="primary-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar colegiado"}
+              </button>
+            </div>
+            {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
+          </form>
+        </EditFormModal>
+      ) : null}
     </div>
   );
 };

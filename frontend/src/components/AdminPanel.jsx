@@ -417,7 +417,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
           <span>
             {isAdmin
               ? "Selecione uma acao administrativa."
-              : "Gerencie sua conta e altere sua senha de acesso."}
+              : "Modo de edicao ativo nas areas operacionais. Aqui voce gerencia apenas sua conta e sua senha."}
           </span>
         </div>
 

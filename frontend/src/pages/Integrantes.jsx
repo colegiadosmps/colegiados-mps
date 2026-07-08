@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlineUsers } from "react-icons/hi2";
+import { HiOutlinePencilSquare, HiOutlineUsers } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import EditFormModal from "../components/EditFormModal";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import TabelaMembros from "../components/TabelaMembros";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 import { ALL_VALUE, buildOptions, normalizeFilterValue } from "../services/filterUtils";
@@ -25,9 +27,14 @@ const aggregateBy = (rows, key) => {
 
 const Integrantes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canEditContent, token, user } = useAuthSession();
   const [membros, setMembros] = useState([]);
   const [colegiados, setColegiados] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [editorError, setEditorError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
     colegiado: normalizeFilterValue(searchParams.get("colegiado")),
     nome: searchParams.get("nome") || "",
@@ -35,13 +42,15 @@ const Integrantes = () => {
     papel: normalizeFilterValue(searchParams.get("papel")),
   });
 
-  useEffect(() => {
+  const loadData = () =>
     Promise.all([api.get("/api/membros"), api.get("/api/colegiados")])
       .then(([membrosResult, colegiadosResult]) => {
         setMembros(membrosResult);
         setColegiados(colegiadosResult);
-      })
-      .finally(() => setLoading(false));
+      });
+
+  useEffect(() => {
+    loadData().finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -76,6 +85,105 @@ const Integrantes = () => {
       return matchesColegiado && matchesNome && matchesTipo && matchesPapel;
     });
   }, [filters, membros]);
+
+  const actionColumns = useMemo(() => {
+    if (!canEditContent) {
+      return [];
+    }
+
+    return [
+      {
+        key: "acoes",
+        label: "Acoes",
+        width: "180px",
+        render: (row) => (
+          <div className="table-row-actions">
+            <button
+              className="text-button"
+              onClick={() => {
+                setEditingMember(row);
+                setEditorError("");
+                setEditorOpen(true);
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+            <button
+              className="secondary-button"
+              onClick={async () => {
+                try {
+                  await api.put(
+                    `/api/membros/${row.id}`,
+                    { ...row, ativo: row.ativo === "Sim" ? "Nao" : "Sim" },
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    },
+                  );
+                  await loadData();
+                } catch (error) {
+                  setEditorError(error.message);
+                  setEditorOpen(true);
+                }
+              }}
+              type="button"
+            >
+              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+            </button>
+          </div>
+        ),
+      },
+    ];
+  }, [canEditContent, token]);
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setEditorError("");
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const payload = {
+        nome_membro: formData.get("nome_membro"),
+        sigla_colegiado: formData.get("sigla_colegiado"),
+        unidade: formData.get("unidade"),
+        tipo_vinculo: formData.get("tipo_vinculo"),
+        papel: formData.get("papel"),
+        detalhamento_papel: formData.get("detalhamento_papel"),
+        inicio_vigencia: formData.get("inicio_vigencia"),
+        fim_vigencia: formData.get("fim_vigencia"),
+        email_institucional: formData.get("email_institucional"),
+        telefone_institucional: formData.get("telefone_institucional"),
+        ativo: formData.get("ativo"),
+        observacao: formData.get("observacao"),
+        sigla_colegiado_pai:
+          colegiados.find((item) => item.sigla === formData.get("sigla_colegiado"))
+            ?.sigla_colegiado_pai || "",
+      };
+
+      const requestOptions = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      if (editingMember?.id) {
+        await api.put(`/api/membros/${editingMember.id}`, payload, requestOptions);
+      } else {
+        await api.post("/api/membros", payload, requestOptions);
+      }
+
+      await loadData();
+      setEditorOpen(false);
+      setEditingMember(null);
+    } catch (error) {
+      setEditorError(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return <Loading label="Carregando integrantes..." />;
@@ -143,7 +251,26 @@ const Integrantes = () => {
       />
 
       <section className="content-card">
-        <TabelaMembros membros={filteredMembros} />
+        <div className="section-heading">
+          <div>
+            <h3>Base de Integrantes</h3>
+            <p>Tabela consolidada com filtros e operacoes permitidas ao perfil autenticado.</p>
+          </div>
+          {canEditContent ? (
+            <button
+              className="primary-button"
+              onClick={() => {
+                setEditingMember(null);
+                setEditorError("");
+                setEditorOpen(true);
+              }}
+              type="button"
+            >
+              Adicionar integrante
+            </button>
+          ) : null}
+        </div>
+        <TabelaMembros extraColumns={actionColumns} membros={filteredMembros} />
       </section>
 
       <section className="charts-grid">
@@ -158,6 +285,104 @@ const Integrantes = () => {
           color="#7a45e6"
         />
       </section>
+
+      {editorOpen ? (
+        <EditFormModal
+          onClose={() => {
+            setEditorOpen(false);
+            setEditingMember(null);
+          }}
+          title={editingMember ? "Editar integrante" : "Adicionar integrante"}
+        >
+          <form className="form-grid" onSubmit={handleSave}>
+            <label>
+              <span>Nome</span>
+              <input defaultValue={editingMember?.nome_membro || ""} name="nome_membro" required />
+            </label>
+            <label>
+              <span>Colegiado</span>
+              <select
+                defaultValue={editingMember?.sigla_colegiado || filters.colegiado || ""}
+                name="sigla_colegiado"
+                required
+              >
+                <option value="">Selecione</option>
+                {colegiados.map((item) => (
+                  <option key={item.sigla} value={item.sigla}>
+                    {formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Tipo de Vinculo</span>
+              <input defaultValue={editingMember?.tipo_vinculo || ""} name="tipo_vinculo" />
+            </label>
+            <label>
+              <span>Papel</span>
+              <input defaultValue={editingMember?.papel || ""} name="papel" />
+            </label>
+            <label>
+              <span>Unidade</span>
+              <input
+                defaultValue={editingMember?.unidade || editingMember?.sigla_colegiado_pai || ""}
+                name="unidade"
+              />
+            </label>
+            <label>
+              <span>Status</span>
+              <select defaultValue={editingMember?.ativo || "Sim"} name="ativo">
+                <option value="Sim">Ativo</option>
+                <option value="Nao">Inativo</option>
+              </select>
+            </label>
+            <label>
+              <span>Inicio</span>
+              <input defaultValue={editingMember?.inicio_vigencia || ""} name="inicio_vigencia" />
+            </label>
+            <label>
+              <span>Fim</span>
+              <input defaultValue={editingMember?.fim_vigencia || ""} name="fim_vigencia" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input
+                defaultValue={editingMember?.email_institucional || ""}
+                name="email_institucional"
+                type="email"
+              />
+            </label>
+            <label>
+              <span>Telefone</span>
+              <input
+                defaultValue={editingMember?.telefone_institucional || ""}
+                name="telefone_institucional"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Detalhamento do Papel</span>
+              <textarea
+                defaultValue={editingMember?.detalhamento_papel || ""}
+                name="detalhamento_papel"
+                rows="3"
+              />
+            </label>
+            <label className="form-grid__full">
+              <span>Observacao</span>
+              <textarea defaultValue={editingMember?.observacao || ""} name="observacao" rows="3" />
+            </label>
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+              </span>
+              <button className="primary-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar integrante"}
+              </button>
+            </div>
+            {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
+          </form>
+        </EditFormModal>
+      ) : null}
     </div>
   );
 };
