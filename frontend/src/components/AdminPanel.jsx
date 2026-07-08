@@ -77,6 +77,9 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
   const [savingCollaborator, setSavingCollaborator] = useState(false);
   const [collaboratorMessage, setCollaboratorMessage] = useState("");
   const [collaboratorError, setCollaboratorError] = useState("");
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [resettingUserId, setResettingUserId] = useState("");
 
   const authHeaders = useMemo(
     () => ({
@@ -125,6 +128,23 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
       setStatusError(requestError.message || "Nao foi possivel carregar o status da base.");
     } finally {
       setLoadingStatus(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+
+    try {
+      const result = await api.get("/api/auth/usuarios", {
+        headers: authHeaders,
+      });
+      setUsers(result);
+    } catch (requestError) {
+      setCollaboratorError(
+        requestError.message || "Nao foi possivel carregar os usuarios autorizados.",
+      );
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -201,6 +221,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
     setCollaboratorMessage("");
     setCollaboratorError("");
     setActiveModal("collaborator");
+    loadUsers();
   };
 
   const closeActiveModal = () => {
@@ -251,12 +272,37 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
         result.message || "Colaborador criado com senha inicial C2026@mps.",
       );
       setCollaboratorForm(INITIAL_COLLABORATOR);
+      await loadUsers();
     } catch (requestError) {
       setCollaboratorError(
         requestError.message || "Nao foi possivel criar o colaborador.",
       );
     } finally {
       setSavingCollaborator(false);
+    }
+  };
+
+  const handleResetPassword = async (targetUser) => {
+    setResettingUserId(String(targetUser.id));
+    setCollaboratorMessage("");
+    setCollaboratorError("");
+
+    try {
+      const result = await api.post(
+        `/api/auth/usuarios/${targetUser.id}/redefinir-senha`,
+        {},
+        {
+          headers: authHeaders,
+        },
+      );
+      setCollaboratorMessage(result.message);
+      await loadUsers();
+    } catch (requestError) {
+      setCollaboratorError(
+        requestError.message || "Nao foi possivel redefinir a senha do usuario.",
+      );
+    } finally {
+      setResettingUserId("");
     }
   };
 
@@ -341,47 +387,82 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
 
       {activeModal === "collaborator" ? (
         <ModalShell onClose={closeActiveModal} title="Adicionar novo colaborador">
-          <form className="form-grid" onSubmit={handleCreateCollaborator}>
-            <label>
-              Nome
-              <input
-                onChange={handleCollaboratorChange("nome")}
-                required
-                value={collaboratorForm.nome}
-              />
-            </label>
-            <label>
-              Email
-              <input
-                onChange={handleCollaboratorChange("email")}
-                required
-                type="email"
-                value={collaboratorForm.email}
-              />
-            </label>
-            <label>
-              Coordenacao
-              <input
-                onChange={handleCollaboratorChange("coordenacao")}
-                required
-                value={collaboratorForm.coordenacao}
-              />
-            </label>
-            <label>
-              Ramal
-              <input
-                onChange={handleCollaboratorChange("ramal")}
-                required
-                value={collaboratorForm.ramal}
-              />
-            </label>
+          <div className="admin-sync-panel">
+            <form className="form-grid" onSubmit={handleCreateCollaborator}>
+              <label>
+                Nome
+                <input
+                  onChange={handleCollaboratorChange("nome")}
+                  required
+                  value={collaboratorForm.nome}
+                />
+              </label>
+              <label>
+                Email
+                <input
+                  onChange={handleCollaboratorChange("email")}
+                  required
+                  type="email"
+                  value={collaboratorForm.email}
+                />
+              </label>
+              <label>
+                Coordenacao
+                <input
+                  onChange={handleCollaboratorChange("coordenacao")}
+                  required
+                  value={collaboratorForm.coordenacao}
+                />
+              </label>
+              <label>
+                Ramal
+                <input
+                  onChange={handleCollaboratorChange("ramal")}
+                  required
+                  value={collaboratorForm.ramal}
+                />
+              </label>
 
-            <div className="form-actions full">
-              <button className="primary-button" disabled={savingCollaborator} type="submit">
-                {savingCollaborator ? "Salvando..." : "Salvar colaborador"}
-              </button>
-            </div>
-          </form>
+              <div className="form-actions full">
+                <button className="primary-button" disabled={savingCollaborator} type="submit">
+                  {savingCollaborator ? "Salvando..." : "Salvar colaborador"}
+                </button>
+              </div>
+            </form>
+
+            <section className="status-panel__section">
+              <h3>Usuarios autorizados</h3>
+              {loadingUsers ? <p className="muted">Carregando usuarios...</p> : null}
+              {!loadingUsers && users.length ? (
+                <div className="admin-users-list">
+                  {users.map((listedUser) => (
+                    <div className="admin-user-card" key={listedUser.id}>
+                      <div className="admin-user-card__content">
+                        <strong>{listedUser.nome}</strong>
+                        <span>{listedUser.email}</span>
+                        <span>
+                          {listedUser.perfil} • {listedUser.status}
+                        </span>
+                      </div>
+                      <button
+                        className="text-button"
+                        disabled={resettingUserId === String(listedUser.id)}
+                        onClick={() => handleResetPassword(listedUser)}
+                        type="button"
+                      >
+                        {resettingUserId === String(listedUser.id)
+                          ? "Redefinindo..."
+                          : "Redefinir senha"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {!loadingUsers && !users.length ? (
+                <p className="muted">Nenhum usuario autorizado cadastrado.</p>
+              ) : null}
+            </section>
+          </div>
 
           {collaboratorMessage ? (
             <div className="inline-message">{collaboratorMessage}</div>

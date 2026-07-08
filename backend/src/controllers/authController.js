@@ -3,6 +3,8 @@ import {
   changeAuthenticatedUserPassword,
   createCollaboratorUser,
   getAuthenticatedSession,
+  listAdminUsers,
+  resetUserPasswordByAdmin,
   revokeSession,
 } from "../services/authService.js";
 
@@ -156,6 +158,38 @@ export const createCollaborator = async (request, response) => {
     response.status(400).json({
       success: false,
       message: error.message || "Nao foi possivel criar o colaborador.",
+    });
+  }
+};
+
+export const listUsers = async (_request, response) => {
+  try {
+    const users = await listAdminUsers();
+    response.json(users);
+  } catch (error) {
+    response.status(500).json({
+      success: false,
+      message: error.message || "Nao foi possivel listar os usuarios.",
+    });
+  }
+};
+
+export const resetUserPassword = async (request, response) => {
+  try {
+    const result = await resetUserPasswordByAdmin({
+      targetUserId: request.params.id,
+    });
+
+    response.json({
+      success: true,
+      message:
+        "Senha redefinida com sucesso para C2026@mps. Troca obrigatoria no proximo acesso.",
+      user: result.user,
+    });
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel redefinir a senha.",
     });
   }
 };

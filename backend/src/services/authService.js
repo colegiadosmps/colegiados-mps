@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
-import { get, run } from "../database/db.js";
+import { all, get, run } from "../database/db.js";
 
 const DEFAULT_ADMIN_NAME = "Andre Ximenes";
 const DEFAULT_ADMIN_EMAIL = "andre.ximenes@previdencia.gov.br";
@@ -82,6 +82,20 @@ const findUserById = async (id) =>
     `,
     [id],
   );
+
+export const listAdminUsers = async () => {
+  const rows = await all(
+    `
+      SELECT *
+      FROM usuarios_admin
+      ORDER BY
+        CASE WHEN perfil = 'ADMIN' THEN 0 ELSE 1 END,
+        nome COLLATE NOCASE ASC
+    `,
+  );
+
+  return rows.map(buildPublicUser);
+};
 
 export const hashPassword = async (password) =>
   new Promise((resolve, reject) => {
@@ -444,5 +458,40 @@ export const createCollaboratorUser = async ({
   return {
     password: DEFAULT_COLLABORATOR_PASSWORD,
     user: buildPublicUser(createdUser),
+  };
+};
+
+export const resetUserPasswordByAdmin = async ({ targetUserId }) => {
+  const targetUser = await findUserById(targetUserId);
+
+  if (!targetUser) {
+    throw new Error("Usuario nao localizado.");
+  }
+
+  await run(
+    `
+      UPDATE usuarios_admin
+      SET senha_hash = ?,
+          senha_temporaria = 1,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    [await hashPassword(DEFAULT_COLLABORATOR_PASSWORD), targetUser.id],
+  );
+
+  console.log(
+    [
+      "[Colaboradores] Senha redefinida pelo admin.",
+      `Destino: ${targetUser.email}`,
+      `Nova senha temporaria: ${DEFAULT_COLLABORATOR_PASSWORD}`,
+      "Troca obrigatoria no proximo acesso.",
+    ].join(" "),
+  );
+
+  const updatedUser = await findUserById(targetUser.id);
+
+  return {
+    password: DEFAULT_COLLABORATOR_PASSWORD,
+    user: buildPublicUser(updatedUser),
   };
 };
