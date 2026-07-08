@@ -6,12 +6,14 @@ const DEFAULT_ADMIN_NAME = "Andre Ximenes";
 const DEFAULT_ADMIN_EMAIL = "andre.ximenes@previdencia.gov.br";
 const DEFAULT_ADMIN_USER = "admin";
 const DEFAULT_ADMIN_PASSWORD = "Colegiados@2026";
+const DEFAULT_COLLABORATOR_PASSWORD = "C2026@mps";
 const SESSION_TTL_HOURS = 8;
 const SCRYPT_KEY_LENGTH = 64;
 const scrypt = promisify(crypto.scrypt);
 
 const normalizeValue = (value) => String(value || "").trim();
 const normalizeComparableValue = (value) => normalizeValue(value).toLowerCase();
+const passwordPolicy = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,12}$/;
 
 const toIsoDate = (date) => date.toISOString();
 
@@ -117,6 +119,8 @@ const verifyPassword = async (password, storedHash) => {
 
   return crypto.timingSafeEqual(expectedBuffer, derivedBuffer);
 };
+
+export const isPasswordValid = (password) => passwordPolicy.test(normalizeValue(password));
 
 export const ensureDefaultAdminUser = async () => {
   const config = getSeedAdminConfig();
@@ -340,4 +344,105 @@ export const revokeSession = async (token) => {
     `,
     [hashToken(normalizedToken)],
   );
+};
+
+export const changeAuthenticatedUserPassword = async ({
+  currentPassword,
+  newPassword,
+  userId,
+}) => {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    throw new Error("Usuario nao localizado.");
+  }
+
+  const currentPasswordMatches = await verifyPassword(currentPassword, user.senha_hash);
+
+  if (!currentPasswordMatches) {
+    throw new Error("Senha atual invalida.");
+  }
+
+  if (!isPasswordValid(newPassword)) {
+    throw new Error(
+      "A nova senha deve ter entre 6 e 12 caracteres, com letra maiuscula, numero e caractere especial.",
+    );
+  }
+
+  await run(
+    `
+      UPDATE usuarios_admin
+      SET senha_hash = ?,
+          senha_temporaria = 0,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    [await hashPassword(newPassword), user.id],
+  );
+
+  const updatedUser = await findUserById(user.id);
+  return buildPublicUser(updatedUser);
+};
+
+export const createCollaboratorUser = async ({
+  coordenacao,
+  email,
+  nome,
+  ramal,
+}) => {
+  const normalizedName = normalizeValue(nome);
+  const normalizedEmail = normalizeComparableValue(email);
+
+  if (!normalizedName || !normalizedEmail) {
+    throw new Error("Nome e email sao obrigatorios.");
+  }
+
+  const existingUser = await findUserByLogin(normalizedEmail);
+
+  if (existingUser) {
+    throw new Error("Ja existe um usuario cadastrado com esse e-mail.");
+  }
+
+  const result = await run(
+    `
+      INSERT INTO usuarios_admin (
+        nome,
+        email,
+        usuario,
+        coordenacao,
+        ramal,
+        perfil,
+        status,
+        senha_hash,
+        senha_temporaria,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, 'COLABORADOR', 'Ativo', ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `,
+    [
+      normalizedName,
+      normalizedEmail,
+      normalizedEmail,
+      normalizeValue(coordenacao),
+      normalizeValue(ramal),
+      await hashPassword(DEFAULT_COLLABORATOR_PASSWORD),
+    ],
+  );
+
+  const createdUser = await findUserById(result.lastID);
+
+  console.log(
+    [
+      "[Colaboradores] Novo colaborador criado.",
+      `Destino: ${createdUser.email}`,
+      `Senha temporaria: ${DEFAULT_COLLABORATOR_PASSWORD}`,
+      "Troca obrigatoria no primeiro acesso.",
+    ].join(" "),
+  );
+
+  return {
+    password: DEFAULT_COLLABORATOR_PASSWORD,
+    user: buildPublicUser(createdUser),
+  };
 };

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
+import AdminLoginModal from "./components/AdminLoginModal";
+import AdminPanel from "./components/AdminPanel";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
-import StatusBasePanel from "./components/StatusBasePanel";
 import Dashboard from "./pages/Dashboard";
 import CalendarioReunioes from "./pages/CalendarioReunioes";
 import ColegiadosExternos from "./pages/ColegiadosExternos";
@@ -13,10 +14,96 @@ import EstadoInstanciasPage from "./pages/EstadoInstanciasPage";
 import HistoricoReunioes from "./pages/HistoricoReunioes";
 import Integrantes from "./pages/Integrantes";
 import Publicacoes from "./pages/Publicacoes";
+import { api } from "./services/api";
+
+const ADMIN_SESSION_KEY = "colegiados_mps_admin_session";
 
 const App = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [adminSession, setAdminSession] = useState(null);
+
+  useEffect(() => {
+    const savedSession = window.sessionStorage.getItem(ADMIN_SESSION_KEY);
+
+    if (!savedSession) {
+      return;
+    }
+
+    try {
+      const parsedSession = JSON.parse(savedSession);
+
+      if (!parsedSession?.token) {
+        window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+        return;
+      }
+
+      api
+        .get("/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${parsedSession.token}`,
+          },
+        })
+        .then((result) => {
+          setAdminSession({
+            token: parsedSession.token,
+            user: result.user,
+          });
+        })
+        .catch(() => {
+          window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+          setAdminSession(null);
+        });
+    } catch (_error) {
+      window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+      setAdminSession(null);
+    }
+  }, []);
+
+  const handleOpenAdmin = () => {
+    if (adminSession?.token) {
+      setAdminPanelOpen(true);
+      return;
+    }
+
+    setLoginOpen(true);
+  };
+
+  const handleAuthenticated = (result) => {
+    const nextSession = {
+      token: result.token,
+      user: result.user,
+    };
+
+    setAdminSession(nextSession);
+    window.sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(nextSession));
+    setLoginOpen(false);
+    setAdminPanelOpen(true);
+  };
+
+  const handleLogout = () => {
+    const token = adminSession?.token;
+
+    if (token) {
+      api
+        .post(
+          "/api/auth/logout",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        )
+        .catch(() => null);
+    }
+
+    window.sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setAdminSession(null);
+    setAdminPanelOpen(false);
+    setLoginOpen(false);
+  };
 
   return (
     <HashRouter>
@@ -24,7 +111,9 @@ const App = () => {
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
         <div className="app-main">
           <Header
-            onOpenStatus={() => setStatusOpen(true)}
+            adminUser={adminSession?.user || null}
+            onLogout={handleLogout}
+            onOpenStatus={handleOpenAdmin}
             onToggleMenu={() => setMenuOpen((current) => !current)}
           />
           <main className="main-content">
@@ -45,7 +134,18 @@ const App = () => {
             </Routes>
           </main>
         </div>
-        <StatusBasePanel onClose={() => setStatusOpen(false)} open={statusOpen} />
+        <AdminLoginModal
+          onAuthenticated={handleAuthenticated}
+          onClose={() => setLoginOpen(false)}
+          open={loginOpen}
+        />
+        <AdminPanel
+          onClose={() => setAdminPanelOpen(false)}
+          onLogout={handleLogout}
+          open={adminPanelOpen}
+          token={adminSession?.token || ""}
+          user={adminSession?.user || null}
+        />
       </div>
     </HashRouter>
   );
