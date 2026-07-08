@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { get, run } from "../database/db.js";
 import { rebuildColegiadoHierarchy } from "./hierarquiaService.js";
 import { importCsvContent, importRootCsvContent } from "./importacaoService.js";
-import { parseFileName } from "./fileNameService.js";
+import { classifyColegiadoCsvFile } from "./fileNameService.js";
 import { formatDateTime, normalizeKey } from "../utils/formatters.js";
 
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
@@ -15,7 +15,10 @@ const ROOT_CSV_NAMES = [
   "COLEGIADOS.CSV",
   "COLEGIADOS_EXTERNOS.CSV",
   "COLEGIADOS EXTERNOS.CSV",
+  "HIERARQUIA_COLEGIADOS.CSV",
 ];
+const SYSTEM_FOLDER_KEYS = new Set(["CONFIGURACOES", "AUDITORIA"]);
+const MODEL_FOLDER_KEY = "MODELOS_CSV";
 
 const sanitizePrivateKey = (value) =>
   value
@@ -258,10 +261,109 @@ const isSupportedRootCsv = (item) => {
   return isKnownRootFile && (hasCsvExtension || hasCompatibleMimeType);
 };
 
+const getRootCsvCategory = (fileName) => {
+  const normalizedName = String(fileName || "").trim().toUpperCase();
+
+  if (normalizedName === "COLEGIADOS.CSV") {
+    return {
+      tipo: "Base principal",
+      modulo: "Colegiados Internos",
+    };
+  }
+
+  if (
+    normalizedName === "COLEGIADOS_EXTERNOS.CSV" ||
+    normalizedName === "COLEGIADOS EXTERNOS.CSV"
+  ) {
+    return {
+      tipo: "Base principal",
+      modulo: "Colegiados Externos",
+    };
+  }
+
+  if (normalizedName === "HIERARQUIA_COLEGIADOS.CSV") {
+    return {
+      tipo: "Base principal",
+      modulo: "Hierarquia",
+    };
+  }
+
+  return null;
+};
+
 const isCsvCandidate = (item) =>
   item.mimeType === "text/csv" ||
   item.mimeType === GOOGLE_SHEETS_MIME ||
   item.name.toLowerCase().endsWith(".csv");
+
+const isSystemFolder = (itemName) => SYSTEM_FOLDER_KEYS.has(normalizeKey(itemName));
+
+const getTechnicalCategoryByPath = (segments) => {
+  const normalizedSegments = segments.map((segment) => normalizeKey(segment));
+
+  if (normalizedSegments.includes("AUDITORIA")) {
+    return "Auditoria";
+  }
+
+  if (normalizedSegments.includes(MODEL_FOLDER_KEY)) {
+    return "Modelo";
+  }
+
+  if (normalizedSegments.includes("CONFIGURACOES")) {
+    return "Configuracao";
+  }
+
+  return null;
+};
+
+const registerIdentifiedTechnicalFile = (summary, { file, category, pathSegments }) => {
+  summary.technical_files.push({
+    arquivo: file.name,
+    file: file.name,
+    drive_file_id: file.id || null,
+    tipo: category,
+    sigla_colegiado: "BASE",
+    data_base: null,
+    quantidade_registros: 0,
+    status: "Identificado",
+    observacao: `Arquivo tecnico do sistema (${category.toLowerCase()}) em ${pathSegments.join("/")}.`,
+  });
+};
+
+const registerIdentifiedContentFile = (summary, { file, tipo, siglaColegiado, dataBase, observacao }) => {
+  summary.identified_only_files.push({
+    arquivo: file.name,
+    file: file.name,
+    drive_file_id: file.id || null,
+    tipo,
+    sigla_colegiado: siglaColegiado || "N/A",
+    data_base: dataBase || null,
+    quantidade_registros: 0,
+    status: "Identificado",
+    observacao:
+      observacao || "Arquivo de conteudo reconhecido, sem importacao automatica nesta etapa.",
+  });
+};
+
+const isMoreRecentFile = (nextFileInfo, currentFileInfo) => {
+  if (!currentFileInfo) {
+    return true;
+  }
+
+  if (nextFileInfo.dataBase && !currentFileInfo.dataBase) {
+    return true;
+  }
+
+  if (!nextFileInfo.dataBase) {
+    return false;
+  }
+
+  if (!currentFileInfo.dataBase) {
+    return true;
+  }
+
+  return nextFileInfo.dataBase > currentFileInfo.dataBase;
+};
 
 const findPublicationFolders = (items, folderName, suffix) => {
   const expected = normalizeKey(`${folderName}${suffix}`);
@@ -314,11 +416,11 @@ export const syncGoogleDrive = async () => {
     fields: "files(id,name,mimeType,webViewLink)",
   });
 
-  const colegiadoFolders = rootItems.filter(
-    (item) => item.mimeType === GOOGLE_FOLDER_MIME,
-  );
+  const rootFolders = rootItems.filter((item) => item.mimeType === GOOGLE_FOLDER_MIME);
+  const systemFolders = rootFolders.filter((item) => isSystemFolder(item.name));
+  const colegiadoFolders = rootFolders.filter((item) => !isSystemFolder(item.name));
   const rootCsvFiles = rootItems.filter(
-    (item) => item.mimeType !== GOOGLE_FOLDER_MIME && isSupportedRootCsv(item),
+    (item) => item.mimeType !== GOOGLE_FOLDER_MIME && isCsvCandidate(item),
   );
 
   const summary = {
@@ -334,6 +436,8 @@ export const syncGoogleDrive = async () => {
       mimeType: item.mimeType,
     })),
     imported_files: [],
+    technical_files: [],
+    identified_only_files: [],
     publication_folders: [],
     skipped_files: [],
     hierarchy_relations: [],
@@ -342,12 +446,25 @@ export const syncGoogleDrive = async () => {
   };
 
   for (const csvFile of rootCsvFiles) {
+    const rootCategory = getRootCsvCategory(csvFile.name);
+
+    if (!rootCategory) {
+      summary.skipped_files.push({
+        file: csvFile.name,
+        reason: "Arquivo CSV na raiz sem classificacao conhecida do sistema.",
+      });
+      continue;
+    }
+
     try {
       const content = await drive.downloadFile({
         fileId: csvFile.id,
         mimeType: csvFile.mimeType,
       });
       const result = await importRootCsvContent(content, csvFile.name);
+      if (Array.isArray(result.hierarchy_relations) && result.hierarchy_relations.length) {
+        summary.hierarchy_relations.push(...result.hierarchy_relations);
+      }
       summary.imported_files.push({
         ...result,
         drive_file_id: csvFile.id,
@@ -388,6 +505,42 @@ export const syncGoogleDrive = async () => {
     });
   }
 
+  const processTechnicalFolder = async (folder, pathSegments = [folder.name]) => {
+    const folderItems = await drive.listFiles({
+      parentId: folder.id,
+      fields: "files(id,name,mimeType,webViewLink)",
+    });
+
+    for (const item of folderItems) {
+      if (item.mimeType === GOOGLE_FOLDER_MIME) {
+        await processTechnicalFolder(item, [...pathSegments, item.name]);
+        continue;
+      }
+
+      if (!isCsvCandidate(item)) {
+        continue;
+      }
+
+      summary.files_found += 1;
+      registerIdentifiedTechnicalFile(summary, {
+        file: item,
+        category: getTechnicalCategoryByPath(pathSegments) || "Configuracao",
+        pathSegments,
+      });
+
+      if (item.mimeType === GOOGLE_SHEETS_MIME) {
+        summary.warnings.push({
+          file: item.name,
+          reason: "Arquivo Google Sheets detectado e exportado como CSV.",
+        });
+      }
+    }
+  };
+
+  for (const systemFolder of systemFolders) {
+    await processTechnicalFolder(systemFolder, [systemFolder.name]);
+  }
+
   if (colegiadoFolders.length === 0) {
     return {
       message:
@@ -423,26 +576,38 @@ export const syncGoogleDrive = async () => {
       const latestByType = new Map();
 
       for (const csvFile of csvFiles) {
-        try {
-          const fileInfo = parseFileName(csvFile.name);
+        const fileInfo = classifyColegiadoCsvFile(csvFile.name);
 
-          if (fileInfo.siglaColegiado !== folderKey) {
-            summary.skipped_files.push({
-              file: csvFile.name,
-              reason: `Sigla do arquivo (${fileInfo.siglaColegiado}) diferente da pasta (${folderKey}).`,
-            });
-            continue;
-          }
-
-          const current = latestByType.get(fileInfo.tipo);
-          if (!current || fileInfo.dataBase > current.fileInfo.dataBase) {
-            latestByType.set(fileInfo.tipo, { csvFile, fileInfo });
-          }
-        } catch (_error) {
+        if (!fileInfo.valid) {
           summary.skipped_files.push({
             file: csvFile.name,
-            reason: "Nome fora do padrao SIGLA_TIPO_DD_MM_AAAA.csv.",
+            reason:
+              "Nome fora do padrao aceito para arquivos de conteudo do colegiado.",
           });
+          continue;
+        }
+
+        if (fileInfo.siglaColegiado !== folderKey) {
+          summary.skipped_files.push({
+            file: csvFile.name,
+            reason: `Sigla do arquivo (${fileInfo.siglaColegiado}) diferente da pasta (${folderKey}).`,
+          });
+          continue;
+        }
+
+        if (!fileInfo.importable) {
+          registerIdentifiedContentFile(summary, {
+            file: csvFile,
+            tipo: fileInfo.tipo,
+            siglaColegiado: fileInfo.siglaColegiado,
+            dataBase: fileInfo.dataBase,
+          });
+          continue;
+        }
+
+        const current = latestByType.get(fileInfo.tipo);
+        if (!current || isMoreRecentFile(fileInfo, current.fileInfo)) {
+          latestByType.set(fileInfo.tipo, { csvFile, fileInfo });
         }
       }
 

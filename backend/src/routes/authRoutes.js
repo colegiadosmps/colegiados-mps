@@ -10,18 +10,26 @@ import {
   me,
   resetUserPassword,
 } from "../controllers/authController.js";
-import { requireAdminAuth } from "../middleware/adminAuthMiddleware.js";
+import {
+  requireAdminAuth,
+  requireAdminProfile,
+} from "../middleware/adminAuthMiddleware.js";
 
 const router = Router();
 
 router.post("/admin", autenticarAdmin);
 router.post("/login", login);
 router.post("/logout", logout);
-router.get("/me", me);
+router.get("/me", requireAdminAuth, me);
 router.post("/esqueci-senha", forgotPassword);
-router.post("/trocar-senha", changePassword);
-router.get("/usuarios", requireAdminAuth, listUsers);
-router.post("/usuarios", requireAdminAuth, createCollaborator);
-router.post("/usuarios/:id/redefinir-senha", requireAdminAuth, resetUserPassword);
+router.post("/trocar-senha", requireAdminAuth, changePassword);
+router.get("/usuarios", requireAdminAuth, requireAdminProfile("ADMIN"), listUsers);
+router.post("/usuarios", requireAdminAuth, requireAdminProfile("ADMIN"), createCollaborator);
+router.post(
+  "/usuarios/:id/redefinir-senha",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN"),
+  resetUserPassword,
+);
 
 export default router;

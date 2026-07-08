@@ -2,7 +2,6 @@ import {
   authenticateAdminUser,
   changeAuthenticatedUserPassword,
   createCollaboratorUser,
-  getAuthenticatedSession,
   listAdminUsers,
   resetUserPasswordByAdmin,
   revokeSession,
@@ -74,20 +73,9 @@ export const logout = async (request, response) => {
 
 export const me = async (request, response) => {
   try {
-    const token = extractToken(request);
-    const session = await getAuthenticatedSession(token);
-
-    if (!session) {
-      response.status(401).json({
-        authenticated: false,
-        message: "Sessao nao autenticada.",
-      });
-      return;
-    }
-
     response.json({
       authenticated: true,
-      user: session.user,
+      user: request.adminUser,
     });
   } catch (error) {
     response.status(500).json({
@@ -107,22 +95,11 @@ export const forgotPassword = async (_request, response) => {
 
 export const changePassword = async (request, response) => {
   try {
-    const token = extractToken(request);
-    const session = await getAuthenticatedSession(token);
-
-    if (!session) {
-      response.status(401).json({
-        success: false,
-        message: "Sessao nao autenticada.",
-      });
-      return;
-    }
-
     const { currentPassword, newPassword } = request.body || {};
     const user = await changeAuthenticatedUserPassword({
       currentPassword,
       newPassword,
-      userId: session.user.id,
+      userId: request.adminUser.id,
     });
 
     response.json({
@@ -140,12 +117,12 @@ export const changePassword = async (request, response) => {
 
 export const createCollaborator = async (request, response) => {
   try {
-    const { coordenacao, email, nome, ramal } = request.body || {};
+    const payload = request.body || {};
     const result = await createCollaboratorUser({
-      coordenacao,
-      email,
-      nome,
-      ramal,
+      coordenacao: payload.coordenacao || payload.coordenacao_nome || payload.department,
+      email: payload.email || payload.usuario,
+      nome: payload.nome || payload.name,
+      ramal: payload.ramal || payload.extension,
     });
 
     response.status(201).json({

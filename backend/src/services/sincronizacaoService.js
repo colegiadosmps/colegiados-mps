@@ -26,7 +26,11 @@ const buildObservacao = (summary) => {
   const parts = [];
 
   if (summary.skipped_files.length > 0) {
-    parts.push(`${summary.skipped_files.length} arquivo(s) ignorado(s) por padrao invalido.`);
+    parts.push(`${summary.skipped_files.length} arquivo(s) ignorado(s) por regra de classificacao.`);
+  }
+
+  if (summary.technical_files.length > 0) {
+    parts.push(`${summary.technical_files.length} arquivo(s) tecnico(s) identificado(s).`);
   }
 
   if (summary.folders_scanned === 0) {
@@ -74,7 +78,11 @@ export const executarSincronizacao = async () => {
       now,
       summary.folders_scanned,
       summary.files_found,
-      summary.imported_files.length + summary.skipped_files.length + summary.errors.length,
+      summary.imported_files.length +
+        summary.technical_files.length +
+        summary.identified_only_files.length +
+        summary.skipped_files.length +
+        summary.errors.length,
       totalRegistrosMembros,
       totalRegistrosReunioes,
       summary.publication_folders.length,
@@ -124,6 +132,60 @@ export const executarSincronizacao = async () => {
         observacao
       ) VALUES (?, ?, ?, 'Ignorado', ?, NULL, 0, 'Ignorado', ?)`,
       [sincronizacao.lastID, item.file, null, item.file.split("_")[0] || "N/A", item.reason],
+    );
+  }
+
+  for (const item of summary.technical_files) {
+    await run(
+      `INSERT INTO sincronizacao_arquivos (
+        sincronizacao_id,
+        arquivo,
+        drive_file_id,
+        tipo,
+        sigla_colegiado,
+        data_base,
+        quantidade_registros,
+        status,
+        observacao
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        sincronizacao.lastID,
+        item.arquivo || item.file,
+        item.drive_file_id || null,
+        item.tipo,
+        item.sigla_colegiado || "BASE",
+        item.data_base || null,
+        item.quantidade_registros || 0,
+        item.status || "Identificado",
+        item.observacao || null,
+      ],
+    );
+  }
+
+  for (const item of summary.identified_only_files) {
+    await run(
+      `INSERT INTO sincronizacao_arquivos (
+        sincronizacao_id,
+        arquivo,
+        drive_file_id,
+        tipo,
+        sigla_colegiado,
+        data_base,
+        quantidade_registros,
+        status,
+        observacao
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        sincronizacao.lastID,
+        item.arquivo || item.file,
+        item.drive_file_id || null,
+        item.tipo,
+        item.sigla_colegiado || "N/A",
+        item.data_base || null,
+        item.quantidade_registros || 0,
+        item.status || "Identificado",
+        item.observacao || null,
+      ],
     );
   }
 

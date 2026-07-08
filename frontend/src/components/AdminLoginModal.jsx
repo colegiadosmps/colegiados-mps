@@ -28,8 +28,14 @@ const AdminLoginModal = ({ onAuthenticated, onClose, open }) => {
     setMessage("");
     setError("");
 
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      user: String(formData.get("user") || credentials.user || "").trim(),
+      password: String(formData.get("password") || credentials.password || ""),
+    };
+
     try {
-      const result = await api.post("/api/auth/login", credentials);
+      const result = await api.post("/api/auth/login", payload);
       setCredentials(initialCredentials);
       onAuthenticated(result);
     } catch (requestError) {
@@ -82,6 +88,7 @@ const AdminLoginModal = ({ onAuthenticated, onClose, open }) => {
             Usuario ou e-mail
             <input
               autoComplete="username"
+              name="user"
               onChange={handleChange("user")}
               required
               value={credentials.user}
@@ -92,6 +99,7 @@ const AdminLoginModal = ({ onAuthenticated, onClose, open }) => {
             Senha
             <input
               autoComplete="current-password"
+              name="password"
               onChange={handleChange("password")}
               required
               type="password"

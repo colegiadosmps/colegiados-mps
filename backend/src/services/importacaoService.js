@@ -27,6 +27,19 @@ const getFieldValue = (record, aliases) => {
   return null;
 };
 
+const getHierarchyValue = (record, aliases) => {
+  const normalized = normalizeRecord(record);
+
+  for (const alias of aliases) {
+    const value = normalizeText(normalized[normalizeKey(alias)]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const normalizeMeetingStatus = (value) => {
   const cleaned = normalizeText(value);
 
@@ -377,6 +390,35 @@ const replaceExternalColegiados = async ({ arquivoOrigem, records }) => {
   };
 };
 
+const parseHierarchyRelations = (records) =>
+  records
+    .map((record) => ({
+      paiSigla: getHierarchyValue(record, ["PAI_SIGLA", "SIGLA_COLEGIADO_PAI", "PARENT_SIGLA"]),
+      filhoSigla: getHierarchyValue(record, ["FILHO_SIGLA", "SIGLA", "SIGLA_COLEGIADO", "CHILD_SIGLA"]),
+      filhoChavePasta: getHierarchyValue(
+        record,
+        ["FILHO_CHAVE_PASTA", "CHAVE_PASTA", "CHILD_FOLDER_KEY"],
+      ),
+      siglaExibicao: getHierarchyValue(
+        record,
+        ["SIGLA_EXIBICAO", "SIGLA_COLEGIADO_EXIBICAO", "DISPLAY_SIGLA"],
+      ),
+      nome: getHierarchyValue(record, ["NOME", "NOME_COLEGIADO", "COLEGIADO"]),
+      tipoRelacao:
+        getHierarchyValue(record, ["TIPO_RELACAO", "TIPO"]) || "Instancia colegiada",
+      origem: getHierarchyValue(record, ["ORIGEM"]) || "Hierarquia_Colegiados.csv",
+      municipio: getHierarchyValue(record, ["MUNICIPIO", "CIDADE"]),
+      uf: getHierarchyValue(record, ["UF"]),
+      estado: getHierarchyValue(record, ["ESTADO"]),
+    }))
+    .filter(
+      (relation) =>
+        normalizeText(relation.paiSigla) &&
+        normalizeText(
+          relation.filhoSigla || relation.filhoChavePasta || relation.siglaExibicao,
+        ),
+    );
+
 const importParsedCsv = async ({ originalName, records, fileInfo }) => {
   await ensureColegiado(fileInfo.siglaColegiado);
 
@@ -476,6 +518,28 @@ export const importRootCsvContent = async (content, originalName) => {
         arquivoOrigem: originalName,
         records,
       });
+    } else if (/^hierarquia_colegiados\.csv$/i.test(String(originalName || "").trim())) {
+      const hierarchyRelations = parseHierarchyRelations(records);
+
+      await registerImport({
+        arquivo: originalName,
+        tipo: "Hierarquia",
+        siglaColegiado: "BASE",
+        dataBase: null,
+        quantidadeRegistros: hierarchyRelations.length,
+        status: "Importado com sucesso",
+        observacao: "Hierarquia de colegiados carregada com sucesso.",
+      });
+
+      result = {
+        arquivo: originalName,
+        tipo: "Hierarquia",
+        sigla_colegiado: "BASE",
+        data_base: null,
+        quantidade_registros: hierarchyRelations.length,
+        status: "Importado com sucesso",
+        hierarchy_relations: hierarchyRelations,
+      };
     } else {
       throw new Error("Arquivo raiz nao suportado para importacao automatica.");
     }

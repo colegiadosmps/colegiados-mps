@@ -19,3 +19,20 @@ export const requireAdminAuth = async (request, response, next) => {
   request.adminUser = session.user;
   next();
 };
+
+export const requireAdminProfile =
+  (...profiles) =>
+  (request, response, next) => {
+    const currentProfile = String(request.adminUser?.perfil || "").toUpperCase();
+    const allowedProfiles = profiles.map((profile) => String(profile || "").toUpperCase());
+
+    if (!allowedProfiles.includes(currentProfile)) {
+      response.status(403).json({
+        authorized: false,
+        message: "Voce nao tem permissao para executar esta acao.",
+      });
+      return;
+    }
+
+    next();
+  };

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   HiOutlineArrowPath,
   HiOutlineCircleStack,
+  HiOutlineKey,
   HiOutlineUserPlus,
   HiOutlineXMark,
 } from "react-icons/hi2";
@@ -13,6 +14,12 @@ const INITIAL_COLLABORATOR = {
   email: "",
   coordenacao: "",
   ramal: "",
+};
+
+const INITIAL_PASSWORD_FORM = {
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: "",
 };
 
 const listClassName = (items) =>
@@ -80,6 +87,10 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [resettingUserId, setResettingUserId] = useState("");
+  const [passwordForm, setPasswordForm] = useState(INITIAL_PASSWORD_FORM);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const authHeaders = useMemo(
     () => ({
@@ -87,6 +98,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
     }),
     [token],
   );
+  const isAdmin = String(user?.perfil || "").toUpperCase() === "ADMIN";
 
   const loadStatusData = async () => {
     setLoadingStatus(true);
@@ -193,6 +205,9 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
           importedFiles: arquivosDetalhados.filter(
             (item) => item.status === "Importado com sucesso",
           ),
+          technicalFiles: arquivosDetalhados.filter((item) =>
+            ["Configuracao", "Modelo", "Auditoria"].includes(item.tipo),
+          ),
           ignoredFiles: arquivosDetalhados.filter((item) => item.status === "Ignorado"),
           warningFiles: arquivosDetalhados.filter((item) => item.status === "Alerta"),
           errorFiles: arquivosDetalhados.filter((item) => item.status === "Erro"),
@@ -222,6 +237,13 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
     setCollaboratorError("");
     setActiveModal("collaborator");
     loadUsers();
+  };
+
+  const openPasswordModal = () => {
+    setPasswordForm(INITIAL_PASSWORD_FORM);
+    setPasswordMessage("");
+    setPasswordError("");
+    setActiveModal("password");
   };
 
   const closeActiveModal = () => {
@@ -264,8 +286,18 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
     setCollaboratorMessage("");
     setCollaboratorError("");
 
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      nome: String(formData.get("nome") || collaboratorForm.nome || "").trim(),
+      email: String(formData.get("email") || collaboratorForm.email || "").trim(),
+      coordenacao: String(
+        formData.get("coordenacao") || collaboratorForm.coordenacao || "",
+      ).trim(),
+      ramal: String(formData.get("ramal") || collaboratorForm.ramal || "").trim(),
+    };
+
     try {
-      const result = await api.post("/api/auth/usuarios", collaboratorForm, {
+      const result = await api.post("/api/auth/usuarios", payload, {
         headers: authHeaders,
       });
       setCollaboratorMessage(
@@ -279,6 +311,56 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
       );
     } finally {
       setSavingCollaborator(false);
+    }
+  };
+
+  const handlePasswordChange = (field) => (event) => {
+    const value = event.target.value;
+    setPasswordForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    setSavingPassword(true);
+    setPasswordMessage("");
+    setPasswordError("");
+
+    const formData = new FormData(event.currentTarget);
+    const currentPassword = String(
+      formData.get("currentPassword") || passwordForm.currentPassword || "",
+    );
+    const newPassword = String(
+      formData.get("newPassword") || passwordForm.newPassword || "",
+    );
+    const confirmPassword = String(
+      formData.get("confirmPassword") || passwordForm.confirmPassword || "",
+    );
+
+    if (newPassword !== confirmPassword) {
+      setSavingPassword(false);
+      setPasswordError("A confirmacao da senha nao confere.");
+      return;
+    }
+
+    try {
+      const result = await api.post(
+        "/api/auth/trocar-senha",
+        {
+          currentPassword,
+          newPassword,
+        },
+        {
+          headers: authHeaders,
+        },
+      );
+      setPasswordMessage(result.message || "Senha atualizada com sucesso.");
+      setPasswordForm(INITIAL_PASSWORD_FORM);
+    } catch (requestError) {
+      setPasswordError(
+        requestError.message || "Nao foi possivel atualizar a senha.",
+      );
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -317,8 +399,8 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
       >
         <div className="app-modal__header">
           <div>
-            <p className="eyebrow">Painel administrativo</p>
-            <h3>Ambiente administrativo</h3>
+            <p className="eyebrow">{isAdmin ? "Painel administrativo" : "Minha conta"}</p>
+            <h3>{isAdmin ? "Ambiente administrativo" : "Area do colaborador"}</h3>
           </div>
           <div className="admin-panel-modal__actions">
             <button className="text-button" onClick={onLogout} type="button">
@@ -331,34 +413,50 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
         </div>
 
         <div className="admin-panel-intro">
-          <strong>Ola, {user?.primeiroNome || "Administrador"}</strong>
-          <span>Selecione uma acao administrativa.</span>
+          <strong>Ola, {user?.primeiroNome || "Usuario"}</strong>
+          <span>
+            {isAdmin
+              ? "Selecione uma acao administrativa."
+              : "Gerencie sua conta e altere sua senha de acesso."}
+          </span>
         </div>
 
         <div className="admin-card-grid">
-          <button className="admin-card" onClick={openSyncModal} type="button">
-            <span className="admin-card__icon">
-              <HiOutlineArrowPath />
-            </span>
-            <strong>Sincronizar a base</strong>
-            <p>Executa a sincronizacao do Google Drive e atualiza os dados do sistema.</p>
-          </button>
+          {isAdmin ? (
+            <>
+              <button className="admin-card" onClick={openSyncModal} type="button">
+                <span className="admin-card__icon">
+                  <HiOutlineArrowPath />
+                </span>
+                <strong>Sincronizar a base</strong>
+                <p>Executa a sincronizacao do Google Drive e atualiza os dados do sistema.</p>
+              </button>
 
-          <button className="admin-card" onClick={openCollaboratorModal} type="button">
-            <span className="admin-card__icon">
-              <HiOutlineUserPlus />
-            </span>
-            <strong>Adicionar novo colaborador</strong>
-            <p>Cria um colaborador ativo com senha inicial `C2026@mps`.</p>
-          </button>
+              <button className="admin-card" onClick={openCollaboratorModal} type="button">
+                <span className="admin-card__icon">
+                  <HiOutlineUserPlus />
+                </span>
+                <strong>Adicionar novo colaborador</strong>
+                <p>Cria um colaborador ativo com senha inicial C2026@mps.</p>
+              </button>
 
-          <button className="admin-card" onClick={openStatusModal} type="button">
-            <span className="admin-card__icon">
-              <HiOutlineCircleStack />
-            </span>
-            <strong>Status da base</strong>
-            <p>Consulta fonte de dados, resumo de carga, arquivos e inconsistencias.</p>
-          </button>
+              <button className="admin-card" onClick={openStatusModal} type="button">
+                <span className="admin-card__icon">
+                  <HiOutlineCircleStack />
+                </span>
+                <strong>Status da base</strong>
+                <p>Consulta fonte de dados, resumo de carga, arquivos e inconsistencias.</p>
+              </button>
+            </>
+          ) : (
+            <button className="admin-card" onClick={openPasswordModal} type="button">
+              <span className="admin-card__icon">
+                <HiOutlineKey />
+              </span>
+              <strong>Alterar minha senha</strong>
+              <p>Atualiza sua senha temporaria ou sua senha atual de acesso.</p>
+            </button>
+          )}
         </div>
       </section>
 
@@ -392,6 +490,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
               <label>
                 Nome
                 <input
+                  name="nome"
                   onChange={handleCollaboratorChange("nome")}
                   required
                   value={collaboratorForm.nome}
@@ -400,6 +499,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
               <label>
                 Email
                 <input
+                  name="email"
                   onChange={handleCollaboratorChange("email")}
                   required
                   type="email"
@@ -409,6 +509,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
               <label>
                 Coordenacao
                 <input
+                  name="coordenacao"
                   onChange={handleCollaboratorChange("coordenacao")}
                   required
                   value={collaboratorForm.coordenacao}
@@ -417,6 +518,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
               <label>
                 Ramal
                 <input
+                  name="ramal"
                   onChange={handleCollaboratorChange("ramal")}
                   required
                   value={collaboratorForm.ramal}
@@ -469,6 +571,66 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
           ) : null}
           {collaboratorError ? (
             <div className="inline-message danger-text">{collaboratorError}</div>
+          ) : null}
+        </ModalShell>
+      ) : null}
+
+      {activeModal === "password" ? (
+        <ModalShell onClose={closeActiveModal} title="Alterar minha senha">
+          <div className="admin-sync-panel">
+            <p>
+              Sua nova senha deve ter entre 6 e 12 caracteres, com letra maiuscula,
+              numero e caractere especial.
+            </p>
+
+            <form className="form-grid" onSubmit={handleChangePassword}>
+              <label>
+                Senha atual
+                <input
+                  autoComplete="current-password"
+                  name="currentPassword"
+                  onChange={handlePasswordChange("currentPassword")}
+                  required
+                  type="password"
+                  value={passwordForm.currentPassword}
+                />
+              </label>
+
+              <label>
+                Nova senha
+                <input
+                  autoComplete="new-password"
+                  name="newPassword"
+                  onChange={handlePasswordChange("newPassword")}
+                  required
+                  type="password"
+                  value={passwordForm.newPassword}
+                />
+              </label>
+
+              <label>
+                Confirmar nova senha
+                <input
+                  autoComplete="new-password"
+                  name="confirmPassword"
+                  onChange={handlePasswordChange("confirmPassword")}
+                  required
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                />
+              </label>
+
+              <div className="form-actions full">
+                <button className="primary-button" disabled={savingPassword} type="submit">
+                  {savingPassword ? "Salvando..." : "Atualizar senha"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {passwordMessage ? <div className="inline-message">{passwordMessage}</div> : null}
+          {passwordError ? (
+            <div className="inline-message danger-text">{passwordError}</div>
           ) : null}
         </ModalShell>
       ) : null}
@@ -555,6 +717,23 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                   </ul>
                 ) : (
                   <p className="muted">Nenhum arquivo importado na ultima leitura.</p>
+                )}
+              </section>
+
+              <section className="status-panel__section">
+                <h3>Arquivos tecnicos do sistema ({derivedStatus.technicalFiles.length})</h3>
+                {derivedStatus.technicalFiles.length ? (
+                  <ul className={listClassName(derivedStatus.technicalFiles)}>
+                    {derivedStatus.technicalFiles.map((item, index) => (
+                      <li key={`${item.arquivo}-${index}`}>
+                        {item.arquivo}: {item.tipo}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">
+                    Nenhum arquivo tecnico identificado na ultima leitura.
+                  </p>
                 )}
               </section>
 
