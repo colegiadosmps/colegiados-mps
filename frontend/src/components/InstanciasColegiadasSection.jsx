@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { HiOutlinePencilSquare, HiOutlineTrash } from "react-icons/hi2";
+import {
+  HiOutlinePauseCircle,
+  HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "./ClearFiltersButton";
 import FilterBox from "./FilterBox";
 import FilterDropdown from "./FilterDropdown";
@@ -72,6 +77,15 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
                 >
                   <HiOutlineTrash />
                 </button>
+                <button
+                  aria-label={instancia.ativo === "Sim" ? `Inativar ${displayName}` : `Reativar ${displayName}`}
+                  className="icon-button--toggle"
+                  onClick={() => onToggleStatus(instancia)}
+                  title={instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
+                  type="button"
+                >
+                  {instancia.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+                </button>
               </>
             ) : null}
           </div>
@@ -84,11 +98,7 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
         </div>
       </div>
       <div className="colegiado-tile__footer">
-        {canEditContent ? (
-          <button className="purple-button" onClick={() => onToggleStatus(instancia)} type="button">
-            {instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
-          </button>
-        ) : <span />}
+        <span />
         <button
           className="text-button instancia-card__action"
           onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}

@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import {
   HiOutlineBriefcase,
   HiOutlineBuildingLibrary,
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
 } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
@@ -159,7 +161,8 @@ const ColegiadosExternos = () => {
               <HiOutlinePencilSquare />
             </button>
             <button
-              className="purple-button"
+              aria-label={row.ativo === "Sim" ? `Inativar ${formatColegiadoDisplayName(row.sigla_exibicao || row.nome || row.sigla)}` : `Reativar ${formatColegiadoDisplayName(row.sigla_exibicao || row.nome || row.sigla)}`}
+              className="icon-button--toggle"
               onClick={async () => {
                 try {
                   await api.put(
@@ -177,9 +180,10 @@ const ColegiadosExternos = () => {
                   setEditorOpen(true);
                 }
               }}
+              title={row.ativo === "Sim" ? "Inativar" : "Reativar"}
               type="button"
             >
-              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+              {row.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
             </button>
             <button
               aria-label={`Excluir ${formatColegiadoDisplayName(row.sigla_exibicao || row.nome || row.sigla)}`}

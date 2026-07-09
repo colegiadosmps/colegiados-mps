@@ -608,7 +608,8 @@ const ConsultaColegiado = () => {
                 <HiOutlineTrash />
               </button>
               <button
-                className="purple-button"
+                aria-label={colegiado.ativo === "Sim" ? "Inativar" : "Reativar"}
+                className="icon-button--toggle"
                 onClick={async () => {
                   try {
                     await api.put(
@@ -625,9 +626,10 @@ const ConsultaColegiado = () => {
                     setEditorError(requestError.message);
                   }
                 }}
+                title={colegiado.ativo === "Sim" ? "Inativar" : "Reativar"}
                 type="button"
               >
-                {colegiado.ativo === "Sim" ? "Inativar" : "Reativar"}
+                {colegiado.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
               </button>
             </div>
           ) : null

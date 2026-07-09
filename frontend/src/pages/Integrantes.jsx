@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
   HiOutlineUsers,
 } from "react-icons/hi2";
@@ -136,7 +138,8 @@ const Integrantes = () => {
               <HiOutlinePencilSquare />
             </button>
             <button
-              className="purple-button"
+              aria-label={row.ativo === "Sim" ? `Inativar integrante ${row.nome_membro}` : `Reativar integrante ${row.nome_membro}`}
+              className="icon-button--toggle"
               onClick={async () => {
                 try {
                   await api.put(
@@ -154,9 +157,10 @@ const Integrantes = () => {
                   setEditorOpen(true);
                 }
               }}
+              title={row.ativo === "Sim" ? "Inativar" : "Reativar"}
               type="button"
             >
-              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+              {row.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
             </button>
             <button
               aria-label={`Excluir integrante ${row.nome_membro}`}

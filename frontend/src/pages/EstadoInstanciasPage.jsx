@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   HiOutlineMap,
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
 } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
@@ -143,6 +145,15 @@ const EstadoInstanciasPage = () => {
                       >
                         <HiOutlineTrash />
                       </button>
+                      <button
+                        aria-label={instancia.ativo === "Sim" ? `Inativar ${formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}` : `Reativar ${formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}`}
+                        className="icon-button--toggle"
+                        onClick={() => handleToggleStatus(instancia)}
+                        title={instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
+                        type="button"
+                      >
+                        {instancia.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+                      </button>
                     </>
                   ) : null}
                 </div>
@@ -162,15 +173,7 @@ const EstadoInstanciasPage = () => {
               </div>
             </div>
             <div className="colegiado-tile__footer">
-              {canEditContent ? (
-                <button
-                  className="purple-button"
-                  onClick={() => handleToggleStatus(instancia)}
-                  type="button"
-                >
-                  {instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
-                </button>
-              ) : <span />}
+              <span />
               <button
                 className="text-button instancia-card__action"
                 onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}

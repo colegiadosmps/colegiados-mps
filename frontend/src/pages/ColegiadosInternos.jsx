@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   HiOutlineClipboardDocumentList,
   HiOutlineFolderOpen,
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
 } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
@@ -221,6 +223,33 @@ const ColegiadosInternos = () => {
                   type="button"
                 >
                   <HiOutlineTrash />
+                </button>
+                <button
+                  aria-label={tipo.status === "Ativo" ? "Inativar" : "Reativar"}
+                  className="icon-button--toggle"
+                  onClick={async () => {
+                    try {
+                      await api.put(
+                        `/api/tipos-colegiados/${tipo.id}`,
+                        {
+                          ...tipo,
+                          status: tipo.status === "Ativo" ? "Inativo" : "Ativo",
+                        },
+                        {
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                        },
+                      );
+                      await loadData();
+                    } catch (error) {
+                      window.alert(error.message);
+                    }
+                  }}
+                  title={tipo.status === "Ativo" ? "Inativar" : "Reativar"}
+                  type="button"
+                >
+                  {tipo.status === "Ativo" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
                 </button>
               </div>
             ) : null}
