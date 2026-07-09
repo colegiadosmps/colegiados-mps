@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { HiOutlineClipboardDocumentList, HiOutlineFolderOpen } from "react-icons/hi2";
+import {
+  HiOutlineClipboardDocumentList,
+  HiOutlineFolderOpen,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import EmptyStatePanel from "../components/common/EmptyStatePanel";
 import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
@@ -20,17 +26,7 @@ const normalizeType = (value) =>
     .trim()
     .toLowerCase();
 
-const typeOrder = ["camara", "comite", "conselho", "grupo de trabalho", "subcomite"];
-const allowedTypes = new Set(typeOrder);
-
-const typeDescriptions = {
-  camara: "Camaras vinculadas a colegiados e estruturas tematicas da base.",
-  comite: "Comites permanentes e tecnicos vinculados ao sistema.",
-  conselho: "Conselhos nacionais e Conselhos de Previdencia Social vinculados a base.",
-  "grupo de trabalho":
-    "Grupos de trabalho e frentes temporarias registradas no conjunto interno.",
-  subcomite: "Subcomites vinculados a colegiados com atuacao especializada.",
-};
+const allowedTypes = new Set(["camara", "comite", "conselho", "grupo de trabalho", "subcomite"]);
 
 const typeSlugMap = {
   camara: "camara",
@@ -40,33 +36,18 @@ const typeSlugMap = {
   subcomite: "subcomite",
 };
 
-const sortTypes = (entries) =>
-  [...entries].sort(([left], [right]) => {
-    const leftIndex = typeOrder.indexOf(normalizeType(left));
-    const rightIndex = typeOrder.indexOf(normalizeType(right));
-    if (leftIndex === -1 && rightIndex === -1) {
-      return left.localeCompare(right);
-    }
-    if (leftIndex === -1) {
-      return 1;
-    }
-    if (rightIndex === -1) {
-      return -1;
-    }
-    return leftIndex - rightIndex;
-  });
-
-const getTypeDescription = (tipo) =>
-  typeDescriptions[normalizeType(tipo)] || "Colegiados internos organizados por classificacao.";
-
 const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(tipo).replace(/\s+/g, "-");
 
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canEditContent, token, user } = useAuthSession();
+  const [tipos, setTipos] = useState(null);
   const [colegiados, setColegiados] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTipo, setEditingTipo] = useState(null);
+  const [tipoToDelete, setTipoToDelete] = useState(null);
+  const [deletingTipo, setDeletingTipo] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
@@ -74,7 +55,14 @@ const ColegiadosInternos = () => {
     sigla: normalizeFilterValue(searchParams.get("sigla")),
   });
 
-  const loadData = () => api.get("/api/colegiados?categoria=Interno").then(setColegiados);
+  const loadData = async () => {
+    const [tiposPayload, colegiadosPayload] = await Promise.all([
+      api.get("/api/tipos-colegiados?categoria=Interno"),
+      api.get("/api/colegiados?categoria=Interno"),
+    ]);
+    setTipos(tiposPayload);
+    setColegiados(colegiadosPayload);
+  };
 
   useEffect(() => {
     loadData();
@@ -91,40 +79,35 @@ const ColegiadosInternos = () => {
     setSearchParams(params, { replace: true });
   }, [filters, setSearchParams]);
 
-  const filteredColegiados = useMemo(() => {
-    if (!colegiados) {
+  const filteredTipos = useMemo(() => {
+    if (!tipos || !colegiados) {
       return [];
     }
 
-    return colegiados.filter((item) => {
-      if (!allowedTypes.has(normalizeType(item.tipo))) {
-        return false;
-      }
+    return tipos
+      .filter((tipo) => allowedTypes.has(normalizeType(tipo.nome_exibicao || tipo.nome)))
+      .map((tipo) => {
+        const related = colegiados.filter((item) => item.tipo === (tipo.nome_exibicao || tipo.nome));
+        const matchesTipo =
+          filters.tipo === ALL_VALUE || (tipo.nome_exibicao || tipo.nome) === filters.tipo;
+        const matchesSigla =
+          filters.sigla === ALL_VALUE ||
+          related.some((item) => {
+            const displayName = formatColegiadoDisplayName(item.sigla_exibicao || item.sigla);
+            return item.sigla === filters.sigla || item.sigla_exibicao === filters.sigla || displayName === filters.sigla;
+          });
 
-      const matchesTipo = filters.tipo === ALL_VALUE || item.tipo === filters.tipo;
-      const matchesSigla =
-        filters.sigla === ALL_VALUE ||
-        item.sigla === filters.sigla ||
-        item.sigla_exibicao === filters.sigla ||
-        formatColegiadoDisplayName(item.sigla_exibicao || item.sigla) === filters.sigla;
-      return matchesTipo && matchesSigla;
-    });
-  }, [colegiados, filters]);
+        return {
+          ...tipo,
+          total_colegiados: related.length,
+          visible: matchesTipo && matchesSigla,
+        };
+      })
+      .filter((tipo) => tipo.visible)
+      .sort((left, right) => (left.ordem_exibicao || 0) - (right.ordem_exibicao || 0));
+  }, [colegiados, filters, tipos]);
 
-  const grouped = useMemo(() => {
-    const groups = new Map();
-
-    filteredColegiados.forEach((item) => {
-      const groupKey = item.tipo || "Sem classificacao";
-      const current = groups.get(groupKey) || [];
-      current.push(item);
-      groups.set(groupKey, current);
-    });
-
-    return sortTypes(Array.from(groups.entries()));
-  }, [filteredColegiados]);
-
-  if (!colegiados) {
+  if (!tipos || !colegiados) {
     return <Loading label="Carregando colegiados internos..." />;
   }
 
@@ -145,16 +128,14 @@ const ColegiadosInternos = () => {
           <>
             <FilterDropdown
               label="Tipo de Colegiado"
-              options={buildOptions(colegiados.map((item) => item.tipo))}
+              options={buildOptions(tipos.map((item) => item.nome_exibicao || item.nome))}
               value={filters.tipo}
               onChange={(value) => setFilters((current) => ({ ...current, tipo: value }))}
             />
             <FilterDropdown
               label="Sigla Colegiado"
               options={buildOptions(
-                colegiados.map((item) =>
-                  formatColegiadoDisplayName(item.sigla_exibicao || item.sigla),
-                ),
+                colegiados.map((item) => formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)),
               )}
               value={filters.sigla}
               onChange={(value) => setFilters((current) => ({ ...current, sigla: value }))}
@@ -175,41 +156,68 @@ const ColegiadosInternos = () => {
             icon={HiOutlineFolderOpen}
             label="Tipos de colegiado"
             tone="blue"
-            value={grouped.length}
+            value={filteredTipos.length}
           />
           {canEditContent ? (
             <button
               className="success-button"
               onClick={() => {
+                setEditingTipo(null);
                 setEditorError("");
                 setEditorOpen(true);
               }}
               type="button"
             >
-              Novo colegiado interno
+              Adicionar nova pasta
             </button>
           ) : null}
         </div>
       </section>
 
       <section className="type-summary-grid">
-        {grouped.map(([tipo, items]) => (
-          <article className="type-summary-card" key={tipo}>
+        {filteredTipos.map((tipo) => (
+          <article className="type-summary-card" key={tipo.id}>
+            {canEditContent ? (
+              <div className="type-summary-card__actions">
+                <button
+                  aria-label="Editar"
+                  className="icon-button--edit"
+                  onClick={() => {
+                    setEditingTipo(tipo);
+                    setEditorError("");
+                    setEditorOpen(true);
+                  }}
+                  title="Editar"
+                  type="button"
+                >
+                  <HiOutlinePencilSquare />
+                </button>
+                <button
+                  aria-label="Excluir"
+                  className="icon-button--delete"
+                  onClick={() => setTipoToDelete(tipo)}
+                  title="Excluir"
+                  type="button"
+                >
+                  <HiOutlineTrash />
+                </button>
+              </div>
+            ) : null}
             <div className="type-summary-card__top">
-              <h3>{tipo}</h3>
-              <span className="pill">{items.length} colegiado(s)</span>
+              <h3>{tipo.nome_exibicao || tipo.nome}</h3>
+              <span className="pill">{tipo.total_colegiados} colegiado(s)</span>
             </div>
-            <p>{getTypeDescription(tipo)}</p>
+            <p>{tipo.descricao || "Colegiados internos organizados por classificacao."}</p>
             <button
               className="text-button type-summary-card__action"
-              onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo)}`)}
+              onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo.nome_exibicao || tipo.nome)}`)}
               type="button"
             >
               Acessar
             </button>
           </article>
         ))}
-        {!grouped.length ? (
+        {!filteredTipos.length ? (
           <EmptyStatePanel
             animation="empty-search"
             message="Nenhum colegiado interno encontrado para os filtros selecionados."
@@ -219,7 +227,10 @@ const ColegiadosInternos = () => {
       </section>
 
       {editorOpen ? (
-        <EditFormModal onClose={() => setEditorOpen(false)} title="Adicionar colegiado interno">
+        <EditFormModal
+          onClose={() => setEditorOpen(false)}
+          title={editingTipo ? "Editar tipo de colegiado" : "Adicionar nova pasta"}
+        >
           <form
             className="form-grid"
             onSubmit={async (event) => {
@@ -229,28 +240,27 @@ const ColegiadosInternos = () => {
 
               try {
                 const formData = new FormData(event.currentTarget);
-                await api.post(
-                  "/api/colegiados",
-                  {
-                    categoria: "Interno",
-                    sigla: formData.get("sigla"),
-                    sigla_exibicao: formData.get("sigla_exibicao"),
-                    nome: formData.get("nome"),
-                    tipo: formData.get("tipo"),
-                    ato_criacao: formData.get("ato_criacao"),
-                    data_instituicao: formData.get("data_instituicao"),
-                    regra_quorum: formData.get("regra_quorum"),
-                    qtd_min_reunioes_anuais: formData.get("qtd_min_reunioes_anuais"),
-                    competencia: formData.get("competencia"),
-                    observacoes: formData.get("observacoes"),
-                    ativo: formData.get("ativo"),
+                const payload = {
+                  categoria: "Interno",
+                  nome: formData.get("nome"),
+                  nome_exibicao: formData.get("nome_exibicao"),
+                  descricao: formData.get("descricao"),
+                  ordem_exibicao: formData.get("ordem_exibicao"),
+                  status: formData.get("status"),
+                  observacoes: formData.get("observacoes"),
+                };
+                const options = {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
                   },
-                  {
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                    },
-                  },
-                );
+                };
+
+                if (editingTipo) {
+                  await api.put(`/api/tipos-colegiados/${editingTipo.id}`, payload, options);
+                } else {
+                  await api.post("/api/tipos-colegiados", payload, options);
+                }
+
                 await loadData();
                 setEditorOpen(false);
               } catch (error) {
@@ -261,70 +271,85 @@ const ColegiadosInternos = () => {
             }}
           >
             <label>
-              <span>Sigla</span>
-              <input name="sigla" required />
+              <span>Nome do tipo</span>
+              <input defaultValue={editingTipo?.nome || ""} name="nome" required />
             </label>
             <label>
-              <span>Sigla de exibicao</span>
-              <input name="sigla_exibicao" />
+              <span>Nome de exibicao</span>
+              <input defaultValue={editingTipo?.nome_exibicao || ""} name="nome_exibicao" required />
             </label>
             <label className="form-grid__full">
-              <span>Nome</span>
-              <input name="nome" required />
+              <span>Descricao</span>
+              <textarea defaultValue={editingTipo?.descricao || ""} name="descricao" rows="3" />
             </label>
             <label>
-              <span>Tipo</span>
-              <select defaultValue="Conselho" name="tipo">
-                <option value="Camara">Camara</option>
-                <option value="Comite">Comite</option>
-                <option value="Conselho">Conselho</option>
-                <option value="Grupo de Trabalho">Grupo de Trabalho</option>
-                <option value="Subcomite">Subcomite</option>
-              </select>
+              <span>Ordem de exibicao</span>
+              <input defaultValue={editingTipo?.ordem_exibicao || ""} name="ordem_exibicao" />
             </label>
             <label>
               <span>Status</span>
-              <select defaultValue="Sim" name="ativo">
-                <option value="Sim">Ativo</option>
-                <option value="Nao">Inativo</option>
+              <select defaultValue={editingTipo?.status || "Ativo"} name="status">
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
               </select>
-            </label>
-            <label>
-              <span>Data de instituicao</span>
-              <input name="data_instituicao" />
-            </label>
-            <label>
-              <span>Quantidade minima de reunioes</span>
-              <input name="qtd_min_reunioes_anuais" />
-            </label>
-            <label className="form-grid__full">
-              <span>Ato de criacao</span>
-              <textarea name="ato_criacao" rows="3" />
-            </label>
-            <label className="form-grid__full">
-              <span>Competencias</span>
-              <textarea name="competencia" rows="4" />
-            </label>
-            <label className="form-grid__full">
-              <span>Regra de quorum</span>
-              <textarea name="regra_quorum" rows="3" />
             </label>
             <label className="form-grid__full">
               <span>Observacoes</span>
-              <textarea name="observacoes" rows="3" />
+              <textarea defaultValue={editingTipo?.observacoes || ""} name="observacoes" rows="3" />
             </label>
             <div className="form-grid__full editor-form-actions">
               <span className="muted">
                 Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
               </span>
-              <button className="primary-button" disabled={saving} type="submit">
-                {saving ? "Salvando..." : "Salvar colegiado"}
+              <button className="success-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar"}
               </button>
             </div>
             {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir"
+        description={
+          tipoToDelete
+            ? "Tem certeza que deseja excluir este tipo de colegiado? Esta acao nao podera ser desfeita."
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingTipo) {
+            setTipoToDelete(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!tipoToDelete) {
+            return;
+          }
+
+          setDeletingTipo(true);
+          try {
+            await api.delete(`/api/tipos-colegiados/${tipoToDelete.id}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            await loadData();
+            setTipoToDelete(null);
+          } catch (error) {
+            window.alert(
+              error.message.includes("vinculados")
+                ? "Existem colegiados vinculados a este tipo. Inative ou remaneje os colegiados antes de excluir."
+                : error.message,
+            );
+          } finally {
+            setDeletingTipo(false);
+          }
+        }}
+        open={Boolean(tipoToDelete)}
+        processing={deletingTipo}
+        title="Confirmar exclusao"
+      />
     </div>
   );
 };

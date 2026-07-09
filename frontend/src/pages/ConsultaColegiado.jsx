@@ -126,6 +126,7 @@ const ConsultaColegiado = () => {
   const [contentSaving, setContentSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState({ type: "", record: null });
   const [deletingContent, setDeletingContent] = useState(false);
+  const [deletingColegiado, setDeletingColegiado] = useState(false);
   const [memberFilters, setMemberFilters] = useState({
     search: "",
     papel: ALL_VALUE,
@@ -576,6 +577,52 @@ const ConsultaColegiado = () => {
   return (
     <div className="page-content">
       <PageHeader
+        actions={
+          canEditContent ? (
+            <div className="table-row-actions">
+              <button
+                aria-label="Editar"
+                className="icon-button--edit"
+                onClick={() => setActiveModal("editar-colegiado")}
+                title="Editar"
+                type="button"
+              >
+                <HiOutlinePencilSquare />
+              </button>
+              <button
+                aria-label="Excluir"
+                className="icon-button--delete"
+                onClick={() => setDeleteTarget({ type: "colegiado", record: colegiado })}
+                title="Excluir"
+                type="button"
+              >
+                <HiOutlineTrash />
+              </button>
+              <button
+                className="purple-button"
+                onClick={async () => {
+                  try {
+                    await api.put(
+                      `/api/colegiados/${colegiado.sigla}`,
+                      { ...colegiado, ativo: colegiado.ativo === "Sim" ? "Nao" : "Sim" },
+                      {
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      },
+                    );
+                    await loadColegiado();
+                  } catch (requestError) {
+                    setEditorError(requestError.message);
+                  }
+                }}
+                type="button"
+              >
+                {colegiado.ativo === "Sim" ? "Inativar" : "Reativar"}
+              </button>
+            </div>
+          ) : null
+        }
         filters={null}
         icon={HiOutlineClipboardDocumentList}
         subtitle={
@@ -647,38 +694,10 @@ const ConsultaColegiado = () => {
         </button>
       </section>
 
-      {canEditContent ? (
-        <section className="content-card">
-          <div className="section-heading">
-            <div>
-              <h3>Modo edicao do colegiado</h3>
-              <p>O perfil autenticado pode manter os dados estruturais e criar vinculacoes.</p>
-            </div>
-            <div className="table-row-actions">
-              <button
-                aria-label="Editar colegiado"
-                className="icon-button--edit"
-                onClick={() => setActiveModal("editar-colegiado")}
-                type="button"
-              >
-                <HiOutlinePencilSquare />
-              </button>
-              {colegiado.categoria !== "Externo" ? (
-                <>
-                  <button className="success-button" onClick={() => setActiveModal("novo-filho")} type="button">
-                    Criar colegiado filho
-                  </button>
-                  <button className="success-button" onClick={() => setActiveModal("nova-instancia")} type="button">
-                    Criar instancia colegiada
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      <InstanciasColegiadasSection sigla={colegiado.sigla} />
+      <InstanciasColegiadasSection
+        onAddInstance={canEditContent ? () => setActiveModal("nova-instancia") : null}
+        sigla={colegiado.sigla}
+      />
 
       {activeModal === "membros" ? (
         <ModalSection
@@ -1227,7 +1246,7 @@ const ConsultaColegiado = () => {
         </EditFormModal>
       ) : null}
 
-      {["editar-colegiado", "novo-filho", "nova-instancia"].includes(activeModal) ? (
+      {["editar-colegiado", "nova-instancia"].includes(activeModal) ? (
         <EditFormModal
           onClose={() => {
             setActiveModal("");
@@ -1235,10 +1254,8 @@ const ConsultaColegiado = () => {
           }}
           title={
             activeModal === "editar-colegiado"
-              ? "Editar colegiado"
-              : activeModal === "novo-filho"
-                ? "Criar colegiado filho"
-                : "Criar instancia colegiada"
+              ? `Editar colegiado ${formatColegiadoDisplayName(colegiado.sigla_exibicao || colegiado.sigla)}`
+              : "Adicionar nova instancia"
           }
         >
           <form
@@ -1250,6 +1267,7 @@ const ConsultaColegiado = () => {
 
               try {
                 const formData = new FormData(event.currentTarget);
+                const tipoVinculo = formData.get("tipo_vinculo");
                 const payload = {
                   categoria: "Interno",
                   sigla: activeModal === "editar-colegiado" ? colegiado.sigla : formData.get("sigla"),
@@ -1257,7 +1275,9 @@ const ConsultaColegiado = () => {
                   nome: formData.get("nome"),
                   tipo:
                     activeModal === "nova-instancia"
-                      ? "Instancia colegiada"
+                      ? tipoVinculo === "Colegiado filho"
+                        ? formData.get("tipo")
+                        : "Instancia colegiada"
                       : formData.get("tipo"),
                   sigla_colegiado_pai:
                     activeModal === "editar-colegiado"
@@ -1305,6 +1325,15 @@ const ConsultaColegiado = () => {
                 <input name="sigla" required />
               </label>
             ) : null}
+            {activeModal === "nova-instancia" ? (
+              <label>
+                <span>Tipo de vinculo</span>
+                <select defaultValue="Instancia colegiada" name="tipo_vinculo">
+                  <option value="Instancia colegiada">Instancia colegiada</option>
+                  <option value="Colegiado filho">Colegiado filho</option>
+                </select>
+              </label>
+            ) : null}
             <label>
               <span>Sigla de exibicao</span>
               <input
@@ -1324,6 +1353,19 @@ const ConsultaColegiado = () => {
               <label>
                 <span>Tipo</span>
                 <select defaultValue={activeModal === "editar-colegiado" ? colegiado.tipo || "Conselho" : "Conselho"} name="tipo">
+                  <option value="Camara">Camara</option>
+                  <option value="Comite">Comite</option>
+                  <option value="Conselho">Conselho</option>
+                  <option value="Grupo de Trabalho">Grupo de Trabalho</option>
+                  <option value="Subcomite">Subcomite</option>
+                </select>
+              </label>
+            ) : null}
+            {activeModal === "nova-instancia" ? (
+              <label>
+                <span>Tipo</span>
+                <select defaultValue="Instancia colegiada" name="tipo">
+                  <option value="Instancia colegiada">Instancia colegiada</option>
                   <option value="Camara">Camara</option>
                   <option value="Comite">Comite</option>
                   <option value="Conselho">Conselho</option>
@@ -1435,7 +1477,9 @@ const ConsultaColegiado = () => {
 
       <ConfirmActionModal
         confirmLabel={
-          deleteTarget.type === "membro"
+          deleteTarget.type === "colegiado"
+            ? "Excluir colegiado"
+            : deleteTarget.type === "membro"
             ? "Excluir membro"
             : deleteTarget.type === "reuniao"
               ? "Excluir reuniao"
@@ -1443,7 +1487,7 @@ const ConsultaColegiado = () => {
         }
         description={
           deleteTarget.record
-            ? `O item "${deleteTarget.record.nome_membro || deleteTarget.record.id_reuniao || deleteTarget.record.nome_pasta || "selecionado"}" sera removido permanentemente.`
+            ? `O item "${deleteTarget.record.nome_membro || deleteTarget.record.id_reuniao || deleteTarget.record.nome_pasta || deleteTarget.record.sigla || "selecionado"}" sera removido permanentemente.`
             : ""
         }
         onCancel={() => {
@@ -1453,10 +1497,24 @@ const ConsultaColegiado = () => {
         }}
         onConfirm={() =>
           deleteTarget.record &&
-          handleDeleteContent(deleteTarget.type, deleteTarget.record)
+          (deleteTarget.type === "colegiado"
+            ? (async () => {
+                setDeletingColegiado(true);
+                try {
+                  await api.delete(`/api/colegiados/${deleteTarget.record.sigla}`, {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  });
+                  window.location.hash = "#/colegiados/internos";
+                } finally {
+                  setDeletingColegiado(false);
+                }
+              })()
+            : handleDeleteContent(deleteTarget.type, deleteTarget.record))
         }
         open={Boolean(deleteTarget.record)}
-        processing={deletingContent}
+        processing={deletingContent || deletingColegiado}
         title="Confirmar exclusao"
       />
     </div>

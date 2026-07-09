@@ -26,6 +26,20 @@ CREATE TABLE IF NOT EXISTS colegiados (
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS tipos_colegiados (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  categoria TEXT NOT NULL DEFAULT 'Interno',
+  nome TEXT NOT NULL,
+  nome_exibicao TEXT,
+  slug TEXT NOT NULL UNIQUE,
+  descricao TEXT,
+  ordem_exibicao INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'Ativo',
+  observacoes TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS membros (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome_membro TEXT NOT NULL,

@@ -101,7 +101,7 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
   );
 };
 
-const InstanciasColegiadasSection = ({ sigla }) => {
+const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
   const { canEditContent, token } = useAuthSession();
   const [payload, setPayload] = useState(null);
   const [municipioFilter, setMunicipioFilter] = useState("");
@@ -270,6 +270,11 @@ const InstanciasColegiadasSection = ({ sigla }) => {
               : "Instancias colegiadas vinculadas a esta estrutura."}
           </p>
         </div>
+        {onAddInstance ? (
+          <button className="success-button" onClick={onAddInstance} type="button">
+            Adicionar nova instancia
+          </button>
+        ) : null}
       </div>
 
       {shouldRenderStateGroups ? (

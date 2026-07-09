@@ -14,6 +14,8 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import { rebuildColegiadoHierarchy } from "./services/hierarquiaService.js";
 import sincronizacoesRoutes from "./routes/sincronizacoesRoutes.js";
 import { ensureDefaultAdminUser } from "./services/authService.js";
+import tiposColegiadosRoutes from "./routes/tiposColegiadosRoutes.js";
+import { ensureTipoColegiadoSeed } from "./services/tipoColegiadoService.js";
 
 dotenv.config();
 
@@ -147,6 +149,7 @@ const ensureSchemaCompatibility = async () => {
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/tipos-colegiados", tiposColegiadosRoutes);
 app.use("/api/colegiados", colegiadosRoutes);
 app.use("/api/membros", membrosRoutes);
 app.use("/api/reunioes", reunioesRoutes);
@@ -159,6 +162,7 @@ const initializeDatabase = async () => {
   await exec(schema);
   await ensureSchemaCompatibility();
   await ensureDefaultAdminUser();
+  await ensureTipoColegiadoSeed();
   await rebuildColegiadoHierarchy([]);
 };
 

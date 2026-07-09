@@ -122,6 +122,15 @@
   align-items: center;
 }
 
+.colegiado-tile__header--start {
+  align-items: flex-start;
+}
+
+.colegiado-tile__title-block {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .colegiado-tile h4 {
   margin: 0;
   color: var(--bg-dark);
@@ -136,6 +145,11 @@
 .colegiado-tile__stats {
   color: var(--text-soft);
   flex-wrap: wrap;
+}
+
+.colegiado-tile__stats--stack {
+  justify-content: flex-start;
+  gap: 0.5rem 1rem;
 }
 
 .colegiado-tile__footer {
