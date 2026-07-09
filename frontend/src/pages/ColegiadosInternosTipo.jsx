@@ -3,7 +3,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   HiOutlineClipboardDocumentList,
   HiOutlineMagnifyingGlass,
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
 } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
@@ -52,27 +54,34 @@ const ColegiadosInternosTipo = () => {
   const { tipoSlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { canEditContent, token, user } = useAuthSession();
+  const [tipos, setTipos] = useState(null);
   const [colegiados, setColegiados] = useState(null);
   const [editorItem, setEditorItem] = useState(null);
+  const [typeEditorOpen, setTypeEditorOpen] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  const [deletingType, setDeletingType] = useState(false);
   const pageType = resolveTypeFromSlug(tipoSlug);
   const [filters, setFilters] = useState({
     busca: searchParams.get("busca") || "",
     sigla: normalizeFilterValue(searchParams.get("sigla")),
   });
 
-  const loadColegiados = () =>
-    api
-      .get(
+  const loadData = async () => {
+    const [tiposPayload, colegiadosPayload] = await Promise.all([
+      api.get("/api/tipos-colegiados?categoria=Interno"),
+      api.get(
         `/api/colegiados?categoria=Interno${pageType === "subcomite" ? "&incluirInstancias=true" : ""}`,
-      )
-      .then(setColegiados);
+      ),
+    ]);
+    setTipos(tiposPayload);
+    setColegiados(colegiadosPayload);
+  };
 
   useEffect(() => {
-    loadColegiados();
+    loadData();
   }, [pageType]);
 
   useEffect(() => {
@@ -114,6 +123,18 @@ const ColegiadosInternosTipo = () => {
     });
   }, [filters, typedColegiados]);
 
+  const currentTipo = useMemo(() => {
+    if (!tipos) {
+      return null;
+    }
+
+    return (
+      tipos.find((item) => normalizeType(item.slug) === normalizeType(tipoSlug)) ||
+      tipos.find((item) => normalizeType(item.nome_exibicao || item.nome) === pageType) ||
+      null
+    );
+  }, [pageType, tipoSlug, tipos]);
+
   const handleToggleStatus = async (item) => {
     try {
       await api.put(
@@ -125,7 +146,7 @@ const ColegiadosInternosTipo = () => {
           },
         },
       );
-      await loadColegiados();
+      await loadData();
     } catch (error) {
       window.alert(error.message);
     }
@@ -139,7 +160,7 @@ const ColegiadosInternosTipo = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      await loadColegiados();
+      await loadData();
     } catch (error) {
       window.alert(error.message);
     } finally {
@@ -148,28 +169,79 @@ const ColegiadosInternosTipo = () => {
     }
   };
 
-  const pageMeta = singularTitles[pageType] || {
-    title: "Colegiados Internos",
-    singular: "colegiado interno",
+  const defaultPageMeta = singularTitles[pageType] || {
+    title: currentTipo?.nome_exibicao || "Colegiados Internos",
+    singular: currentTipo?.nome_exibicao || "colegiado interno",
   };
 
-  if (!colegiados) {
-    return <Loading label="Carregando colegiados internos..." />;
-  }
+  const pageMeta = currentTipo
+    ? {
+        title: currentTipo.nome_exibicao || currentTipo.nome,
+        singular: (currentTipo.nome_exibicao || currentTipo.nome || "colegiado").toLowerCase(),
+      }
+    : defaultPageMeta;
 
-  if (!typedColegiados.length) {
-    return (
-      <EmptyStatePanel
-        animation="empty"
-        message="Nenhum colegiado encontrado para este tipo."
-        title="Categoria vazia"
-      />
-    );
+  if (!colegiados || !tipos) {
+    return <Loading label="Carregando colegiados internos..." />;
   }
 
   return (
     <div className="page-content">
       <PageHeader
+        actions={
+          canEditContent && currentTipo ? (
+            <div className="table-row-actions">
+              <button
+                aria-label="Editar"
+                className="icon-button--edit"
+                onClick={() => {
+                  setTypeEditorOpen(true);
+                  setEditorError("");
+                }}
+                title="Editar"
+                type="button"
+              >
+                <HiOutlinePencilSquare />
+              </button>
+              <button
+                aria-label="Excluir"
+                className="icon-button--delete"
+                onClick={() => setItemToDelete({ __type: "tipo", ...currentTipo })}
+                title="Excluir"
+                type="button"
+              >
+                <HiOutlineTrash />
+              </button>
+              <button
+                aria-label={currentTipo.status === "Ativo" ? "Inativar" : "Reativar"}
+                className="icon-button--toggle"
+                onClick={async () => {
+                  try {
+                    await api.put(
+                      `/api/tipos-colegiados/${currentTipo.id}`,
+                      {
+                        ...currentTipo,
+                        status: currentTipo.status === "Ativo" ? "Inativo" : "Ativo",
+                      },
+                      {
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      },
+                    );
+                    await loadData();
+                  } catch (error) {
+                    window.alert(error.message);
+                  }
+                }}
+                title={currentTipo.status === "Ativo" ? "Inativar" : "Reativar"}
+                type="button"
+              >
+                {currentTipo.status === "Ativo" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
+              </button>
+            </div>
+          ) : null
+        }
         filters={
           <>
             <FilterBox label="Pesquisa">
@@ -264,8 +336,8 @@ const ColegiadosInternosTipo = () => {
             </div>
             <div className="colegiado-tile__footer">
               {canEditContent ? (
-                <button className="purple-button" onClick={() => handleToggleStatus(item)} type="button">
-                  {item.ativo === "Sim" ? "Inativar" : "Reativar"}
+                <button className="icon-button--toggle" onClick={() => handleToggleStatus(item)} title={item.ativo === "Sim" ? "Inativar" : "Reativar"} type="button">
+                  {item.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
                 </button>
               ) : (
                 <span />
@@ -332,7 +404,7 @@ const ColegiadosInternosTipo = () => {
                   await api.post("/api/colegiados", payload, options);
                 }
 
-                await loadColegiados();
+                await loadData();
                 setEditorItem(null);
               } catch (error) {
                 setEditorError(error.message);
@@ -413,21 +485,129 @@ const ColegiadosInternosTipo = () => {
         </EditFormModal>
       ) : null}
 
+      {typeEditorOpen && currentTipo ? (
+        <EditFormModal
+          onClose={() => setTypeEditorOpen(false)}
+          title="Editar tipo de colegiado"
+        >
+          <form
+            className="form-grid"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setSaving(true);
+              setEditorError("");
+
+              try {
+                const formData = new FormData(event.currentTarget);
+                await api.put(
+                  `/api/tipos-colegiados/${currentTipo.id}`,
+                  {
+                    categoria: "Interno",
+                    nome: formData.get("nome"),
+                    nome_exibicao: formData.get("nome_exibicao"),
+                    descricao: formData.get("descricao"),
+                    ordem_exibicao: formData.get("ordem_exibicao"),
+                    status: formData.get("status"),
+                    observacoes: formData.get("observacoes"),
+                  },
+                  {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  },
+                );
+                await loadData();
+                setTypeEditorOpen(false);
+              } catch (error) {
+                setEditorError(error.message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <label>
+              <span>Nome do tipo</span>
+              <input defaultValue={currentTipo.nome || ""} name="nome" required />
+            </label>
+            <label>
+              <span>Nome de exibicao</span>
+              <input defaultValue={currentTipo.nome_exibicao || ""} name="nome_exibicao" required />
+            </label>
+            <label className="form-grid__full">
+              <span>Descricao</span>
+              <textarea defaultValue={currentTipo.descricao || ""} name="descricao" rows="3" />
+            </label>
+            <label>
+              <span>Ordem de exibicao</span>
+              <input defaultValue={currentTipo.ordem_exibicao || ""} name="ordem_exibicao" />
+            </label>
+            <label>
+              <span>Status</span>
+              <select defaultValue={currentTipo.status || "Ativo"} name="status">
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </label>
+            <label className="form-grid__full">
+              <span>Observacoes</span>
+              <textarea defaultValue={currentTipo.observacoes || ""} name="observacoes" rows="3" />
+            </label>
+            <div className="form-grid__full editor-form-actions">
+              <span className="muted">
+                {saving
+                  ? "Salvando tipo de colegiado..."
+                  : `Edicao disponivel para ${user?.primeiroNome || "usuario autenticado"}.`}
+              </span>
+              <button className="success-button" disabled={saving} type="submit">
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+            {editorError ? <div className="inline-message danger-text">{editorError}</div> : null}
+          </form>
+        </EditFormModal>
+      ) : null}
+
       <ConfirmActionModal
-        confirmLabel="Excluir colegiado"
+        confirmLabel={itemToDelete?.__type === "tipo" ? "Excluir tipo" : "Excluir colegiado"}
         description={
-          itemToDelete
-            ? `O colegiado "${formatColegiadoDisplayName(itemToDelete.sigla_exibicao || itemToDelete.sigla)}" sera removido permanentemente.`
-            : ""
+          itemToDelete?.__type === "tipo"
+            ? "Tem certeza que deseja excluir este tipo de colegiado? Esta acao nao podera ser desfeita."
+            : itemToDelete
+              ? `O colegiado "${formatColegiadoDisplayName(itemToDelete.sigla_exibicao || itemToDelete.sigla)}" sera removido permanentemente.`
+              : ""
         }
         onCancel={() => {
-          if (!deletingItem) {
+          if (!deletingItem && !deletingType) {
             setItemToDelete(null);
           }
         }}
-        onConfirm={() => itemToDelete && handleDelete(itemToDelete)}
+        onConfirm={async () => {
+          if (!itemToDelete) {
+            return;
+          }
+
+          if (itemToDelete.__type === "tipo") {
+            setDeletingType(true);
+            try {
+              await api.delete(`/api/tipos-colegiados/${itemToDelete.id}`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              navigate("/colegiados/internos");
+            } catch (error) {
+              window.alert(error.message);
+            } finally {
+              setDeletingType(false);
+              setItemToDelete(null);
+            }
+            return;
+          }
+
+          await handleDelete(itemToDelete);
+        }}
         open={Boolean(itemToDelete)}
-        processing={deletingItem}
+        processing={deletingItem || deletingType}
         title="Confirmar exclusao"
       />
     </div>
