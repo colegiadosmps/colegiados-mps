@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HiOutlineXMark } from "react-icons/hi2";
+import FeedbackPanel from "./common/FeedbackPanel";
 import { api } from "../services/api";
 
 const initialCredentials = {
@@ -117,8 +118,8 @@ const AdminLoginModal = ({ onAuthenticated, onClose, open }) => {
           </div>
         </form>
 
-        {message ? <div className="inline-message">{message}</div> : null}
-        {error ? <div className="inline-message danger-text">{error}</div> : null}
+        {message ? <FeedbackPanel message={message} tone="success" /> : null}
+        {error ? <FeedbackPanel message={error} tone="error" title="Erro de autenticacao" /> : null}
       </section>
     </>
   );

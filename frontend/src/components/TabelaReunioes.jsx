@@ -19,6 +19,7 @@ const columns = [
 const TabelaReunioes = ({ reunioes, extraColumns = [] }) => (
   <PowerBiTable
     columns={[...columns, ...extraColumns]}
+    emptyVariant="empty-calendar"
     emptyMessage="Nenhuma reuniao encontrada para os filtros selecionados."
     rows={reunioes}
     sortable={false}

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlineCalendarDays } from "react-icons/hi2";
+import {
+  HiOutlineCalendarDays,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import GraficoLinha from "../components/GraficoLinha";
@@ -42,6 +47,8 @@ const CalendarioReunioes = () => {
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
+  const [meetingToDelete, setMeetingToDelete] = useState(null);
+  const [deletingMeeting, setDeletingMeeting] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
@@ -88,6 +95,24 @@ const CalendarioReunioes = () => {
     });
   }, [colegiados, filters, reunioes]);
 
+  const handleDeleteMeeting = async (row) => {
+    setDeletingMeeting(true);
+    try {
+      await api.delete(`/api/reunioes/${row.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadData();
+      setMeetingToDelete(null);
+    } catch (error) {
+      setEditorError(error.message);
+      setEditorOpen(true);
+    } finally {
+      setDeletingMeeting(false);
+    }
+  };
+
   const actionColumns = useMemo(() => {
     if (!canEditContent) {
       return [];
@@ -97,11 +122,12 @@ const CalendarioReunioes = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar reuniao ${row.id_reuniao}`}
+              className="icon-button--edit"
               onClick={() => {
                 setEditingMeeting(row);
                 setEditorError("");
@@ -109,10 +135,10 @@ const CalendarioReunioes = () => {
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -137,6 +163,14 @@ const CalendarioReunioes = () => {
               type="button"
             >
               {row.status_reuniao === "Cancelada" ? "Reativar" : "Cancelar"}
+            </button>
+            <button
+              aria-label={`Excluir reuniao ${row.id_reuniao}`}
+              className="icon-button--delete"
+              onClick={() => setMeetingToDelete(row)}
+              type="button"
+            >
+              <HiOutlineTrash />
             </button>
           </div>
         ),
@@ -241,7 +275,7 @@ const CalendarioReunioes = () => {
           </div>
           {canEditContent ? (
             <button
-              className="primary-button"
+              className="success-button"
               onClick={() => {
                 setEditingMeeting(null);
                 setEditorError("");
@@ -343,6 +377,24 @@ const CalendarioReunioes = () => {
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir reuniao"
+        description={
+          meetingToDelete
+            ? `A reuniao "${meetingToDelete.id_reuniao}" sera removida permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingMeeting) {
+            setMeetingToDelete(null);
+          }
+        }}
+        onConfirm={() => meetingToDelete && handleDeleteMeeting(meetingToDelete)}
+        open={Boolean(meetingToDelete)}
+        processing={deletingMeeting}
+        title="Excluir reuniao"
+      />
     </div>
   );
 };

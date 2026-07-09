@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { HiOutlineClipboardDocumentList, HiOutlineMagnifyingGlass } from "react-icons/hi2";
+import {
+  HiOutlineClipboardDocumentList,
+  HiOutlineMagnifyingGlass,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import {
   formatBooleanStatus,
@@ -48,7 +56,10 @@ const ColegiadosInternosTipo = () => {
   const navigate = useNavigate();
   const { tipoSlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canEditContent, token } = useAuthSession();
   const [colegiados, setColegiados] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(false);
   const pageType = resolveTypeFromSlug(tipoSlug);
   const [filters, setFilters] = useState({
     busca: searchParams.get("busca") || "",
@@ -108,6 +119,42 @@ const ColegiadosInternosTipo = () => {
     });
   }, [filters, typedColegiados]);
 
+  const handleToggleStatus = async (item) => {
+    try {
+      await api.put(
+        `/api/colegiados/${item.sigla}`,
+        { ...item, ativo: item.ativo === "Sim" ? "Nao" : "Sim" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const result = await api.get("/api/colegiados?categoria=Interno");
+      setColegiados(result);
+    } catch (error) {
+      window.alert(error.message);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    setDeletingItem(true);
+    try {
+      await api.delete(`/api/colegiados/${item.sigla}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await api.get("/api/colegiados?categoria=Interno");
+      setColegiados(result);
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setDeletingItem(false);
+      setItemToDelete(null);
+    }
+  };
+
   const pageMeta = singularTitles[pageType] || {
     title: "Colegiados Internos",
     singular: "colegiado interno",
@@ -118,7 +165,13 @@ const ColegiadosInternosTipo = () => {
   }
 
   if (!typedColegiados.length) {
-    return <div className="empty-state">Nenhum colegiado encontrado para este tipo.</div>;
+    return (
+      <EmptyStatePanel
+        animation="empty"
+        message="Nenhum colegiado encontrado para este tipo."
+        title="Categoria vazia"
+      />
+    );
   }
 
   return (
@@ -166,31 +219,88 @@ const ColegiadosInternosTipo = () => {
 
       <section className="colegiado-grid">
         {filteredColegiados.map((item) => (
-          <button
-            className="colegiado-tile"
-            key={item.sigla}
-            onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
-            type="button"
-          >
+          <article className="colegiado-tile" key={item.sigla}>
             <div className="colegiado-tile__header">
               <span className="pill">
                 {formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}
               </span>
-              <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
-                {formatBooleanStatus(item.ativo)}
-              </span>
+              <div className="colegiado-tile__actions">
+                {canEditContent ? (
+                  <>
+                    <button
+                      aria-label={`Editar ${formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}`}
+                      className="icon-button--edit"
+                      onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
+                      type="button"
+                    >
+                      <HiOutlinePencilSquare />
+                    </button>
+                    <button
+                      aria-label={`Excluir ${formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}`}
+                      className="icon-button--delete"
+                      onClick={() => setItemToDelete(item)}
+                      type="button"
+                    >
+                      <HiOutlineTrash />
+                    </button>
+                  </>
+                ) : null}
+                <span className={`badge ${item.ativo === "Sim" ? "success" : "danger"}`}>
+                  {formatBooleanStatus(item.ativo)}
+                </span>
+              </div>
             </div>
             <h4>{item.nome || formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}</h4>
             <div className="colegiado-tile__stats">
               <span>{item.total_membros || 0} membros</span>
               <span>{item.total_reunioes || 0} reunioes</span>
             </div>
-          </button>
+            <div className="colegiado-tile__footer">
+              {canEditContent ? (
+                <button
+                  className="purple-button"
+                  onClick={() => handleToggleStatus(item)}
+                  type="button"
+                >
+                  {item.ativo === "Sim" ? "Inativar" : "Reativar"}
+                </button>
+              ) : <span />}
+              <button
+                className="text-button"
+                onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
+                type="button"
+              >
+                Acessar
+              </button>
+            </div>
+          </article>
         ))}
         {!filteredColegiados.length ? (
-          <div className="empty-state">Nenhum colegiado encontrado para os filtros selecionados.</div>
+          <EmptyStatePanel
+            animation="empty-search"
+            message="Nenhum colegiado encontrado para os filtros selecionados."
+            title="Busca sem resultado"
+          />
         ) : null}
       </section>
+
+      <ConfirmActionModal
+        confirmLabel="Excluir colegiado"
+        description={
+          itemToDelete
+            ? `O colegiado "${formatColegiadoDisplayName(itemToDelete.sigla_exibicao || itemToDelete.sigla)}" sera removido permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingItem) {
+            setItemToDelete(null);
+          }
+        }}
+        onConfirm={() => itemToDelete && handleDelete(itemToDelete)}
+        open={Boolean(itemToDelete)}
+        processing={deletingItem}
+        title="Excluir colegiado"
+      />
     </div>
   );
 };

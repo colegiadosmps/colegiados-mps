@@ -10,6 +10,29 @@ import {
 } from "recharts";
 import ChartCard from "./ChartCard";
 
+const TooltipContent = ({ active, label, payload }) => {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid rgba(10, 45, 94, 0.1)",
+        borderRadius: "14px",
+        padding: "0.75rem 0.9rem",
+        boxShadow: "0 12px 24px rgba(11, 47, 79, 0.08)",
+      }}
+    >
+      <p style={{ margin: 0, color: "#0b2f4f", fontWeight: 600 }}>{label}</p>
+      <p style={{ margin: "0.35rem 0 0", color: "#2563eb" }}>
+        Total: {payload[0]?.value ?? 0}
+      </p>
+    </div>
+  );
+};
+
 const GraficoLinha = ({ data, dataKey = "value", title, color = "#2f7d4f" }) => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -36,7 +59,7 @@ const GraficoLinha = ({ data, dataKey = "value", title, color = "#2f7d4f" }) => 
             interval="preserveStartEnd"
           />
           <YAxis tickLine={false} axisLine={false} tick={{ fontSize: isMobile ? 11 : 13 }} width={isMobile ? 30 : 42} />
-          <Tooltip />
+          <Tooltip content={<TooltipContent />} />
           <Line
             type="monotone"
             dataKey={dataKey}

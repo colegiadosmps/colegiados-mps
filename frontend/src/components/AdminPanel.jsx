@@ -6,6 +6,9 @@ import {
   HiOutlineUserPlus,
   HiOutlineXMark,
 } from "react-icons/hi2";
+import EmptyStatePanel from "./common/EmptyStatePanel";
+import FeedbackPanel from "./common/FeedbackPanel";
+import LottieAnimation from "./common/LottieAnimation";
 import { api } from "../services/api";
 import { formatDateTime } from "../services/formatters";
 
@@ -463,6 +466,14 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
       {activeModal === "sync" ? (
         <ModalShell onClose={closeActiveModal} title="Sincronizar base de dados">
           <div className="admin-sync-panel">
+            <div className="loading-state loading-state--visual">
+              <LottieAnimation
+                fallback={<div className="spinner" />}
+                height={140}
+                name={syncing ? "sync-drive" : syncMessage ? "success" : syncError ? "error" : "sync-drive"}
+                width={140}
+              />
+            </div>
             <p>
               Dispare a sincronizacao manual da base. O sistema vai permanecer no
               ambiente administrativo apos a conclusao.
@@ -477,8 +488,8 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                 {syncing ? "Sincronizando..." : "Sincronizar agora"}
               </button>
             </div>
-            {syncMessage ? <div className="inline-message">{syncMessage}</div> : null}
-            {syncError ? <div className="inline-message danger-text">{syncError}</div> : null}
+            {syncMessage ? <FeedbackPanel message={syncMessage} tone="success" /> : null}
+            {syncError ? <FeedbackPanel message={syncError} tone="error" title="Falha na sincronizacao" /> : null}
           </div>
         </ModalShell>
       ) : null}
@@ -486,6 +497,16 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
       {activeModal === "collaborator" ? (
         <ModalShell onClose={closeActiveModal} title="Adicionar novo colaborador">
           <div className="admin-sync-panel">
+            {(savingCollaborator || collaboratorMessage || collaboratorError) ? (
+              <div className="loading-state loading-state--visual">
+                <LottieAnimation
+                  fallback={<div className="spinner" />}
+                  height={120}
+                  name={savingCollaborator ? "import-csv" : collaboratorError ? "error" : "success-saved"}
+                  width={120}
+                />
+              </div>
+            ) : null}
             <form className="form-grid" onSubmit={handleCreateCollaborator}>
               <label>
                 Nome
@@ -561,23 +582,33 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                 </div>
               ) : null}
               {!loadingUsers && !users.length ? (
-                <p className="muted">Nenhum usuario autorizado cadastrado.</p>
+                <EmptyStatePanel
+                  animation="empty"
+                  message="Nenhum usuario autorizado cadastrado."
+                  title="Lista vazia"
+                />
               ) : null}
             </section>
           </div>
 
-          {collaboratorMessage ? (
-            <div className="inline-message">{collaboratorMessage}</div>
-          ) : null}
-          {collaboratorError ? (
-            <div className="inline-message danger-text">{collaboratorError}</div>
-          ) : null}
+          {collaboratorMessage ? <FeedbackPanel message={collaboratorMessage} tone="saved" /> : null}
+          {collaboratorError ? <FeedbackPanel message={collaboratorError} tone="error" title="Erro ao salvar colaborador" /> : null}
         </ModalShell>
       ) : null}
 
       {activeModal === "password" ? (
         <ModalShell onClose={closeActiveModal} title="Alterar minha senha">
           <div className="admin-sync-panel">
+            {(savingPassword || passwordMessage || passwordError) ? (
+              <div className="loading-state loading-state--visual">
+                <LottieAnimation
+                  fallback={<div className="spinner" />}
+                  height={120}
+                  name={savingPassword ? "loading-base" : passwordError ? "error" : "success-saved"}
+                  width={120}
+                />
+              </div>
+            ) : null}
             <p>
               Sua nova senha deve ter entre 6 e 12 caracteres, com letra maiuscula,
               numero e caractere especial.
@@ -628,23 +659,26 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
             </form>
           </div>
 
-          {passwordMessage ? <div className="inline-message">{passwordMessage}</div> : null}
-          {passwordError ? (
-            <div className="inline-message danger-text">{passwordError}</div>
-          ) : null}
+          {passwordMessage ? <FeedbackPanel message={passwordMessage} tone="saved" /> : null}
+          {passwordError ? <FeedbackPanel message={passwordError} tone="error" title="Erro ao alterar senha" /> : null}
         </ModalShell>
       ) : null}
 
       {activeModal === "status" ? (
         <ModalShell onClose={closeActiveModal} title="Status da base" wide>
           {loadingStatus ? (
-            <div className="loading-state">
-              <span className="spinner" />
-              Carregando status da base...
+            <div className="loading-state loading-state--visual">
+              <LottieAnimation
+                fallback={<div className="spinner" />}
+                height={120}
+                name="loading-base"
+                width={120}
+              />
+              <span>Carregando status da base...</span>
             </div>
           ) : null}
 
-          {statusError ? <div className="inline-message danger-text">{statusError}</div> : null}
+          {statusError ? <FeedbackPanel message={statusError} tone="error" title="Erro ao carregar a base" /> : null}
 
           {!loadingStatus && statusPayload && derivedStatus ? (
             <div className="status-panel__content">
@@ -701,7 +735,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Nenhum arquivo CSV identificado.</p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhum arquivo CSV identificado."
+                    title="Sem arquivos CSV"
+                  />
                 )}
               </section>
 
@@ -716,7 +754,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Nenhum arquivo importado na ultima leitura.</p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhum arquivo importado na ultima leitura."
+                    title="Sem importacoes recentes"
+                  />
                 )}
               </section>
 
@@ -731,9 +773,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">
-                    Nenhum arquivo tecnico identificado na ultima leitura.
-                  </p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhum arquivo tecnico identificado na ultima leitura."
+                    title="Sem arquivos tecnicos"
+                  />
                 )}
               </section>
 
@@ -748,7 +792,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Nenhum arquivo ignorado na ultima leitura.</p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhum arquivo ignorado na ultima leitura."
+                    title="Sem arquivos ignorados"
+                  />
                 )}
               </section>
 
@@ -763,7 +811,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Nenhum alerta registrado na ultima leitura.</p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhum alerta registrado na ultima leitura."
+                    title="Sem alertas"
+                  />
                 )}
               </section>
 
@@ -776,7 +828,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">Nenhuma pasta de colegiado localizada.</p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhuma pasta de colegiado localizada."
+                    title="Sem pastas encontradas"
+                  />
                 )}
               </section>
 
@@ -794,9 +850,11 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
                     ))}
                   </ul>
                 ) : (
-                  <p className="muted">
-                    Nenhuma inconsistencia detectada na leitura atual.
-                  </p>
+                  <EmptyStatePanel
+                    animation="empty"
+                    message="Nenhuma inconsistencia detectada na leitura atual."
+                    title="Base consistente"
+                  />
                 )}
               </section>
             </div>

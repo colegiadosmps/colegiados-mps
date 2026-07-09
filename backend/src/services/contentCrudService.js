@@ -336,6 +336,47 @@ export const updateColegiado = async ({ currentSigla, payload, user }) => {
   return updated;
 };
 
+export const deleteColegiado = async ({ currentSigla, user }) => {
+  const existing = await get(`SELECT * FROM colegiados WHERE sigla = ? OR chave_pasta = ?`, [
+    normalizeKey(currentSigla),
+    normalizeKey(currentSigla),
+  ]);
+
+  if (!existing) {
+    throw new Error("Colegiado nao localizado.");
+  }
+
+  await run(`DELETE FROM membros WHERE sigla_colegiado = ?`, [existing.sigla]);
+  await run(`DELETE FROM reunioes WHERE sigla_colegiado = ?`, [existing.sigla]);
+  await run(`DELETE FROM pastas_publicacoes WHERE sigla_colegiado = ?`, [existing.sigla]);
+  await run(`DELETE FROM colegiado_hierarquia WHERE filho_sigla = ? OR pai_sigla = ?`, [
+    existing.sigla,
+    existing.sigla,
+  ]);
+  await run(
+    `UPDATE colegiados
+     SET sigla_colegiado_pai = NULL,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE sigla_colegiado_pai = ?`,
+    [existing.sigla],
+  );
+  await run(`DELETE FROM colegiados WHERE id = ?`, [existing.id]);
+
+  await logChangeEvent({
+    acao: "EXCLUIR_COLEGIADO",
+    modulo: existing.categoria === "Externo" ? "Colegiados Externos" : "Colegiados Internos",
+    colegiadoPai: existing.sigla_colegiado_pai,
+    colegiadoAlvo: existing.sigla,
+    tipoRegistro: "Colegiado",
+    idRegistroAfetado: existing.id,
+    descricaoResumida: `Colegiado ${existing.sigla} excluido manualmente.`,
+    dadosAnteriores: existing,
+    user,
+  });
+
+  return existing;
+};
+
 export const createMembro = async ({ payload, user }) => {
   const normalized = buildMembroPayload(payload, user);
 
@@ -472,6 +513,29 @@ export const updateMembro = async ({ id, payload, user }) => {
   return updated;
 };
 
+export const deleteMembro = async ({ id, user }) => {
+  const existing = await get(`SELECT * FROM membros WHERE id = ?`, [id]);
+  if (!existing) {
+    throw new Error("Membro nao localizado.");
+  }
+
+  await run(`DELETE FROM membros WHERE id = ?`, [id]);
+
+  await logChangeEvent({
+    acao: "EXCLUIR_MEMBRO",
+    modulo: "Membros",
+    colegiadoPai: existing.sigla_colegiado_pai,
+    colegiadoAlvo: existing.sigla_colegiado,
+    tipoRegistro: "Membro",
+    idRegistroAfetado: existing.id,
+    descricaoResumida: `Membro ${existing.nome_membro} excluido.`,
+    dadosAnteriores: existing,
+    user,
+  });
+
+  return existing;
+};
+
 export const createReuniao = async ({ payload, user }) => {
   const normalized = buildReuniaoPayload(payload, user);
   if (!normalized.sigla_colegiado || !normalized.id_reuniao) {
@@ -599,6 +663,28 @@ export const updateReuniao = async ({ id, payload, user }) => {
   return updated;
 };
 
+export const deleteReuniao = async ({ id, user }) => {
+  const existing = await get(`SELECT * FROM reunioes WHERE id = ?`, [id]);
+  if (!existing) {
+    throw new Error("Reuniao nao localizada.");
+  }
+
+  await run(`DELETE FROM reunioes WHERE id = ?`, [id]);
+
+  await logChangeEvent({
+    acao: "EXCLUIR_REUNIAO",
+    modulo: "Calendario de Reunioes",
+    colegiadoAlvo: existing.sigla_colegiado,
+    tipoRegistro: "Reuniao",
+    idRegistroAfetado: existing.id,
+    descricaoResumida: `Reuniao ${existing.id_reuniao} excluida.`,
+    dadosAnteriores: existing,
+    user,
+  });
+
+  return existing;
+};
+
 export const createPublicacao = async ({ payload, user }) => {
   const normalized = buildPublicacaoPayload(payload, user);
   if (!normalized.sigla_colegiado || !normalized.nome_pasta) {
@@ -717,4 +803,26 @@ export const updatePublicacao = async ({ id, payload, user }) => {
     user,
   });
   return updated;
+};
+
+export const deletePublicacao = async ({ id, user }) => {
+  const existing = await get(`SELECT * FROM pastas_publicacoes WHERE id = ?`, [id]);
+  if (!existing) {
+    throw new Error("Publicacao nao localizada.");
+  }
+
+  await run(`DELETE FROM pastas_publicacoes WHERE id = ?`, [id]);
+
+  await logChangeEvent({
+    acao: "EXCLUIR_PUBLICACAO",
+    modulo: "Publicacoes",
+    colegiadoAlvo: existing.sigla_colegiado,
+    tipoRegistro: "Publicacao",
+    idRegistroAfetado: existing.id,
+    descricaoResumida: `Publicacao ${existing.nome_pasta} excluida.`,
+    dadosAnteriores: existing,
+    user,
+  });
+
+  return existing;
 };

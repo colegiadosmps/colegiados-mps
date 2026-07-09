@@ -1,5 +1,9 @@
 import { all } from "../database/db.js";
-import { createPublicacao, updatePublicacao } from "../services/contentCrudService.js";
+import {
+  createPublicacao,
+  deletePublicacao,
+  updatePublicacao,
+} from "../services/contentCrudService.js";
 
 export const listarPublicacoes = async (request, response) => {
   try {
@@ -67,6 +71,22 @@ export const atualizarPublicacao = async (request, response) => {
     response.status(400).json({
       success: false,
       message: error.message || "Nao foi possivel atualizar a publicacao.",
+    });
+  }
+};
+
+export const excluirPublicacao = async (request, response) => {
+  try {
+    await deletePublicacao({
+      id: request.params.id,
+      user: request.adminUser,
+    });
+
+    response.status(204).send();
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel excluir a publicacao.",
     });
   }
 };

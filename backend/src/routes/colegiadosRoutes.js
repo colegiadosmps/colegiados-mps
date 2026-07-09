@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   atualizarColegiado,
   criarColegiado,
+  excluirColegiado,
   listarColegiados,
   listarInstanciasPorColegiado,
   listarInstanciasPorUf,
@@ -20,6 +21,12 @@ router.put(
   requireAdminAuth,
   requireAdminProfile("ADMIN", "COLABORADOR"),
   atualizarColegiado,
+);
+router.delete(
+  "/:sigla",
+  requireAdminAuth,
+  requireAdminProfile("ADMIN", "COLABORADOR"),
+  excluirColegiado,
 );
 router.get("/:sigla", obterColegiadoPorSigla);
 

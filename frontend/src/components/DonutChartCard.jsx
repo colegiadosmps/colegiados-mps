@@ -3,6 +3,31 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import ChartCard from "./ChartCard";
 import ExpandedChartModal from "./ExpandedChartModal";
 
+const TooltipContent = ({ active, payload }) => {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid rgba(10, 45, 94, 0.1)",
+        borderRadius: "14px",
+        padding: "0.75rem 0.9rem",
+        boxShadow: "0 12px 24px rgba(11, 47, 79, 0.08)",
+      }}
+    >
+      <p style={{ margin: 0, color: "#0b2f4f", fontWeight: 600 }}>
+        {payload[0]?.payload?.label || "Sem dados"}
+      </p>
+      <p style={{ margin: "0.35rem 0 0", color: "#2563eb" }}>
+        Total: {payload[0]?.value ?? 0}
+      </p>
+    </div>
+  );
+};
+
 const DonutChartCard = ({ colors, data, title }) => {
   const [expanded, setExpanded] = useState(false);
   const normalizedData = data.filter((item) => item.value > 0);
@@ -36,7 +61,7 @@ const DonutChartCard = ({ colors, data, title }) => {
                 />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip content={<TooltipContent />} />
           </PieChart>
         </ResponsiveContainer>
         <div className="donut-card__center">

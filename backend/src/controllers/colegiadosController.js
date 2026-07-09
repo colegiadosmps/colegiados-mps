@@ -4,7 +4,11 @@ import {
   getHierarchyByParent,
   getHierarchyByParentAndUf,
 } from "../services/hierarquiaService.js";
-import { createColegiado, updateColegiado } from "../services/contentCrudService.js";
+import {
+  createColegiado,
+  deleteColegiado,
+  updateColegiado,
+} from "../services/contentCrudService.js";
 import { normalizeKey } from "../utils/formatters.js";
 
 const formatInstanciaPayload = (row) => ({
@@ -309,6 +313,22 @@ export const atualizarColegiado = async (request, response) => {
     response.status(400).json({
       success: false,
       message: error.message || "Nao foi possivel atualizar o colegiado.",
+    });
+  }
+};
+
+export const excluirColegiado = async (request, response) => {
+  try {
+    await deleteColegiado({
+      currentSigla: request.params.sigla,
+      user: request.adminUser,
+    });
+
+    response.status(204).send();
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel excluir o colegiado.",
     });
   }
 };

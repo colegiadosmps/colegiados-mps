@@ -14,6 +14,7 @@ import DonutChartCard from "../components/DonutChartCard";
 import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
 
@@ -172,7 +173,7 @@ const Dashboard = () => {
   );
 
   if (error) {
-    return <div className="empty-state">{error}</div>;
+    return <EmptyStatePanel animation="error" message={error} title="Falha ao montar o dashboard" />;
   }
 
   if (!resumo || !derived) {

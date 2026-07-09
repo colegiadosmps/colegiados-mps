@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { HiOutlinePencilSquare, HiOutlineTrash } from "react-icons/hi2";
 import ClearFiltersButton from "./ClearFiltersButton";
 import FilterBox from "./FilterBox";
 import FilterDropdown from "./FilterDropdown";
+import ConfirmActionModal from "./common/ConfirmActionModal";
+import EmptyStatePanel from "./common/EmptyStatePanel";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { ALL_VALUE, buildOptions } from "../services/filterUtils";
 import {
@@ -34,7 +38,7 @@ const EstadoCard = ({ estado, parentSigla }) => {
   );
 };
 
-const InstanciaDiretaCard = ({ instancia }) => {
+const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStatus }) => {
   const navigate = useNavigate();
   const displayName = formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla);
   const title =
@@ -47,7 +51,31 @@ const InstanciaDiretaCard = ({ instancia }) => {
   return (
     <article className="instancia-card">
       <div className="instancia-card__content">
-        <span className="pill">{displayName}</span>
+        <div className="colegiado-tile__header">
+          <span className="pill">{displayName}</span>
+          <div className="colegiado-tile__actions">
+            {canEditContent ? (
+              <>
+                <button
+                  aria-label={`Editar ${displayName}`}
+                  className="icon-button--edit"
+                  onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+                  type="button"
+                >
+                  <HiOutlinePencilSquare />
+                </button>
+                <button
+                  aria-label={`Excluir ${displayName}`}
+                  className="icon-button--delete"
+                  onClick={() => onDelete(instancia)}
+                  type="button"
+                >
+                  <HiOutlineTrash />
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
         <h4>{title}</h4>
         <div className="instancia-card__meta">
           <span>{formatBooleanStatus(instancia.ativo)}</span>
@@ -55,21 +83,31 @@ const InstanciaDiretaCard = ({ instancia }) => {
           <span>{instancia.reunioes_count || 0} reunioes</span>
         </div>
       </div>
-      <button
-        className="text-button instancia-card__action"
-        onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
-        type="button"
-      >
-        Acessar
-      </button>
+      <div className="colegiado-tile__footer">
+        {canEditContent ? (
+          <button className="purple-button" onClick={() => onToggleStatus(instancia)} type="button">
+            {instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
+          </button>
+        ) : <span />}
+        <button
+          className="text-button instancia-card__action"
+          onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+          type="button"
+        >
+          Acessar
+        </button>
+      </div>
     </article>
   );
 };
 
 const InstanciasColegiadasSection = ({ sigla }) => {
+  const { canEditContent, token } = useAuthSession();
   const [payload, setPayload] = useState(null);
   const [municipioFilter, setMunicipioFilter] = useState("");
   const [ufFilter, setUfFilter] = useState(ALL_VALUE);
+  const [instanciaToDelete, setInstanciaToDelete] = useState(null);
+  const [deletingInstancia, setDeletingInstancia] = useState(false);
   const normalizedParentSigla = String(sigla || "").trim().toUpperCase();
 
   useEffect(() => {
@@ -78,6 +116,46 @@ const InstanciasColegiadasSection = ({ sigla }) => {
       .then(setPayload)
       .catch(() => setPayload({ total: 0, agrupamento: null, instancias: [] }));
   }, [sigla]);
+
+  const refreshPayload = () =>
+    api
+      .get(`/api/colegiados/${sigla}/instancias`)
+      .then(setPayload)
+      .catch(() => setPayload({ total: 0, agrupamento: null, instancias: [] }));
+
+  const handleToggleStatus = async (instancia) => {
+    try {
+      await api.put(
+        `/api/colegiados/${instancia.sigla}`,
+        { ...instancia, ativo: instancia.ativo === "Sim" ? "Nao" : "Sim" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      await refreshPayload();
+    } catch (error) {
+      window.alert(error.message);
+    }
+  };
+
+  const handleDelete = async (instancia) => {
+    setDeletingInstancia(true);
+    try {
+      await api.delete(`/api/colegiados/${instancia.sigla}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await refreshPayload();
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setDeletingInstancia(false);
+      setInstanciaToDelete(null);
+    }
+  };
 
   const cnpsDerivedEstados = useMemo(() => {
     if (normalizedParentSigla !== "CNPS") {
@@ -236,18 +314,44 @@ const InstanciasColegiadasSection = ({ sigla }) => {
               ))}
             </div>
           ) : (
-            <div className="empty-state">
-              Nenhuma instancia colegiada encontrada para os filtros selecionados.
-            </div>
+            <EmptyStatePanel
+              animation="empty-search"
+              message="Nenhuma instancia colegiada encontrada para os filtros selecionados."
+              title="Busca sem resultado"
+            />
           )}
         </>
       ) : (
         <div className="instancias-grid">
           {payload.instancias.map((instancia) => (
-            <InstanciaDiretaCard instancia={instancia} key={instancia.sigla} />
+            <InstanciaDiretaCard
+              canEditContent={canEditContent}
+              instancia={instancia}
+              key={instancia.sigla}
+              onDelete={setInstanciaToDelete}
+              onToggleStatus={handleToggleStatus}
+            />
           ))}
         </div>
       )}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir instancia"
+        description={
+          instanciaToDelete
+            ? `A instancia colegiada "${formatColegiadoDisplayName(instanciaToDelete.sigla_exibicao || instanciaToDelete.sigla)}" sera removida permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingInstancia) {
+            setInstanciaToDelete(null);
+          }
+        }}
+        onConfirm={() => instanciaToDelete && handleDelete(instanciaToDelete)}
+        open={Boolean(instanciaToDelete)}
+        processing={deletingInstancia}
+        title="Excluir instancia colegiada"
+      />
     </section>
   );
 };

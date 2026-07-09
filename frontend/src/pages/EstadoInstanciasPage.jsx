@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { HiOutlineMap } from "react-icons/hi2";
+import {
+  HiOutlineMap,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import FilterBox from "../components/FilterBox";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
+import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import {
   formatBooleanStatus,
@@ -15,8 +22,19 @@ const EstadoInstanciasPage = () => {
   const navigate = useNavigate();
   const { sigla, uf } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { canEditContent, token } = useAuthSession();
   const [payload, setPayload] = useState(null);
   const [municipio, setMunicipio] = useState(searchParams.get("municipio") || "");
+  const [instanciaToDelete, setInstanciaToDelete] = useState(null);
+  const [deletingInstancia, setDeletingInstancia] = useState(false);
+
+  const loadPayload = (currentMunicipio) => {
+    const query = currentMunicipio.trim()
+      ? `?municipio=${encodeURIComponent(currentMunicipio.trim())}`
+      : "";
+
+    return api.get(`/api/colegiados/${sigla}/instancias/${uf}${query}`).then(setPayload);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -27,13 +45,7 @@ const EstadoInstanciasPage = () => {
   }, [municipio, setSearchParams]);
 
   useEffect(() => {
-    const query = municipio.trim()
-      ? `?municipio=${encodeURIComponent(municipio.trim())}`
-      : "";
-
-    api
-      .get(`/api/colegiados/${sigla}/instancias/${uf}${query}`)
-      .then(setPayload);
+    loadPayload(municipio);
   }, [municipio, sigla, uf]);
 
   const filtered = useMemo(() => payload?.instancias || [], [payload]);
@@ -41,6 +53,40 @@ const EstadoInstanciasPage = () => {
   if (!payload) {
     return <Loading label="Carregando instancias colegiadas..." />;
   }
+
+  const handleToggleStatus = async (instancia) => {
+    try {
+      await api.put(
+        `/api/colegiados/${instancia.sigla}`,
+        { ...instancia, ativo: instancia.ativo === "Sim" ? "Nao" : "Sim" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      await loadPayload(municipio);
+    } catch (error) {
+      window.alert(error.message);
+    }
+  };
+
+  const handleDelete = async (instancia) => {
+    setDeletingInstancia(true);
+    try {
+      await api.delete(`/api/colegiados/${instancia.sigla}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadPayload(municipio);
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setDeletingInstancia(false);
+      setInstanciaToDelete(null);
+    }
+  };
 
   const parentDisplayName = formatColegiadoDisplayName(sigla);
 
@@ -74,9 +120,33 @@ const EstadoInstanciasPage = () => {
         {filtered.map((instancia) => (
           <article className="instancia-card" key={instancia.sigla}>
             <div className="instancia-card__content">
-              <span className="pill pill--soft">
-                {formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}
-              </span>
+              <div className="colegiado-tile__header">
+                <span className="pill pill--soft">
+                  {formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}
+                </span>
+                <div className="colegiado-tile__actions">
+                  {canEditContent ? (
+                    <>
+                      <button
+                        aria-label={`Editar ${formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}`}
+                        className="icon-button--edit"
+                        onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+                        type="button"
+                      >
+                        <HiOutlinePencilSquare />
+                      </button>
+                      <button
+                        aria-label={`Excluir ${formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}`}
+                        className="icon-button--delete"
+                        onClick={() => setInstanciaToDelete(instancia)}
+                        type="button"
+                      >
+                        <HiOutlineTrash />
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
               <h4>
                 {instancia.nome &&
                 instancia.nome !== instancia.sigla &&
@@ -91,19 +161,52 @@ const EstadoInstanciasPage = () => {
                 <span>{instancia.reunioes_count || 0} reunioes</span>
               </div>
             </div>
-            <button
-              className="text-button instancia-card__action"
-              onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
-              type="button"
-            >
-              Acessar
-            </button>
+            <div className="colegiado-tile__footer">
+              {canEditContent ? (
+                <button
+                  className="purple-button"
+                  onClick={() => handleToggleStatus(instancia)}
+                  type="button"
+                >
+                  {instancia.ativo === "Sim" ? "Inativar" : "Reativar"}
+                </button>
+              ) : <span />}
+              <button
+                className="text-button instancia-card__action"
+                onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+                type="button"
+              >
+                Acessar
+              </button>
+            </div>
           </article>
         ))}
         {!filtered.length ? (
-          <div className="empty-state">Nenhuma instancia colegiada encontrada para este Estado.</div>
+          <EmptyStatePanel
+            animation="empty-search"
+            message="Nenhuma instancia colegiada encontrada para este Estado."
+            title="Sem instancias colegiadas"
+          />
         ) : null}
       </section>
+
+      <ConfirmActionModal
+        confirmLabel="Excluir instancia"
+        description={
+          instanciaToDelete
+            ? `A instancia colegiada "${formatColegiadoDisplayName(instanciaToDelete.sigla_exibicao || instanciaToDelete.sigla)}" sera removida permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingInstancia) {
+            setInstanciaToDelete(null);
+          }
+        }}
+        onConfirm={() => instanciaToDelete && handleDelete(instanciaToDelete)}
+        open={Boolean(instanciaToDelete)}
+        processing={deletingInstancia}
+        title="Excluir instancia colegiada"
+      />
     </div>
   );
 };

@@ -1,5 +1,9 @@
 import { all } from "../database/db.js";
-import { createMembro, updateMembro } from "../services/contentCrudService.js";
+import {
+  createMembro,
+  deleteMembro,
+  updateMembro,
+} from "../services/contentCrudService.js";
 
 export const listarMembros = async (request, response) => {
   try {
@@ -89,6 +93,22 @@ export const atualizarMembro = async (request, response) => {
     response.status(400).json({
       success: false,
       message: error.message || "Nao foi possivel atualizar o membro.",
+    });
+  }
+};
+
+export const excluirMembro = async (request, response) => {
+  try {
+    await deleteMembro({
+      id: request.params.id,
+      user: request.adminUser,
+    });
+
+    response.status(204).send();
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel excluir o membro.",
     });
   }
 };

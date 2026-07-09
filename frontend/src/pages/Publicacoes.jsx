@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlineChartBarSquare } from "react-icons/hi2";
+import {
+  HiOutlineChartBarSquare,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
@@ -68,6 +73,8 @@ const Publicacoes = () => {
   const [colegiados, setColegiados] = useState([]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingPublication, setEditingPublication] = useState(null);
+  const [publicationToDelete, setPublicationToDelete] = useState(null);
+  const [deletingPublication, setDeletingPublication] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
@@ -119,6 +126,24 @@ const Publicacoes = () => {
     });
   }, [colegiados, filters, publicacoes]);
 
+  const handleDeletePublication = async (row) => {
+    setDeletingPublication(true);
+    try {
+      await api.delete(`/api/publicacoes/${row.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadData();
+      setPublicationToDelete(null);
+    } catch (error) {
+      setEditorError(error.message);
+      setEditorOpen(true);
+    } finally {
+      setDeletingPublication(false);
+    }
+  };
+
   const actionColumns = useMemo(() => {
     if (!canEditContent) {
       return [];
@@ -128,11 +153,12 @@ const Publicacoes = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar publicacao ${row.nome_pasta}`}
+              className="icon-button--edit"
               onClick={() => {
                 setEditingPublication(row);
                 setEditorError("");
@@ -140,10 +166,10 @@ const Publicacoes = () => {
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   const nextStatus = row.status === "Inativo" ? "Ativo" : "Inativo";
@@ -165,6 +191,14 @@ const Publicacoes = () => {
               type="button"
             >
               {row.status === "Inativo" ? "Reativar" : "Inativar"}
+            </button>
+            <button
+              aria-label={`Excluir publicacao ${row.nome_pasta}`}
+              className="icon-button--delete"
+              onClick={() => setPublicationToDelete(row)}
+              type="button"
+            >
+              <HiOutlineTrash />
             </button>
           </div>
         ),
@@ -264,7 +298,7 @@ const Publicacoes = () => {
           </div>
           {canEditContent ? (
             <button
-              className="primary-button"
+              className="success-button"
               onClick={() => {
                 setEditingPublication(null);
                 setEditorError("");
@@ -365,6 +399,26 @@ const Publicacoes = () => {
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir publicacao"
+        description={
+          publicationToDelete
+            ? `A publicacao "${publicationToDelete.nome_pasta}" sera removida permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingPublication) {
+            setPublicationToDelete(null);
+          }
+        }}
+        onConfirm={() =>
+          publicationToDelete && handleDeletePublication(publicationToDelete)
+        }
+        open={Boolean(publicationToDelete)}
+        processing={deletingPublication}
+        title="Excluir publicacao"
+      />
     </div>
   );
 };

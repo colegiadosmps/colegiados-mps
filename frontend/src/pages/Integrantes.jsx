@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlinePencilSquare, HiOutlineUsers } from "react-icons/hi2";
+import {
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+  HiOutlineUsers,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import EditFormModal from "../components/EditFormModal";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
@@ -33,6 +38,8 @@ const Integrantes = () => {
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [memberToDelete, setMemberToDelete] = useState(null);
+  const [deletingMember, setDeletingMember] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
@@ -86,6 +93,24 @@ const Integrantes = () => {
     });
   }, [filters, membros]);
 
+  const handleDeleteMember = async (row) => {
+    setDeletingMember(true);
+    try {
+      await api.delete(`/api/membros/${row.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadData();
+      setMemberToDelete(null);
+    } catch (error) {
+      setEditorError(error.message);
+      setEditorOpen(true);
+    } finally {
+      setDeletingMember(false);
+    }
+  };
+
   const actionColumns = useMemo(() => {
     if (!canEditContent) {
       return [];
@@ -95,11 +120,12 @@ const Integrantes = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar integrante ${row.nome_membro}`}
+              className="icon-button--edit"
               onClick={() => {
                 setEditingMember(row);
                 setEditorError("");
@@ -107,10 +133,10 @@ const Integrantes = () => {
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -131,6 +157,14 @@ const Integrantes = () => {
               type="button"
             >
               {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+            </button>
+            <button
+              aria-label={`Excluir integrante ${row.nome_membro}`}
+              className="icon-button--delete"
+              onClick={() => setMemberToDelete(row)}
+              type="button"
+            >
+              <HiOutlineTrash />
             </button>
           </div>
         ),
@@ -258,7 +292,7 @@ const Integrantes = () => {
           </div>
           {canEditContent ? (
             <button
-              className="primary-button"
+              className="success-button"
               onClick={() => {
                 setEditingMember(null);
                 setEditorError("");
@@ -383,6 +417,24 @@ const Integrantes = () => {
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir integrante"
+        description={
+          memberToDelete
+            ? `O integrante "${memberToDelete.nome_membro}" sera removido permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingMember) {
+            setMemberToDelete(null);
+          }
+        }}
+        onConfirm={() => memberToDelete && handleDeleteMember(memberToDelete)}
+        open={Boolean(memberToDelete)}
+        processing={deletingMember}
+        title="Excluir integrante"
+      />
     </div>
   );
 };

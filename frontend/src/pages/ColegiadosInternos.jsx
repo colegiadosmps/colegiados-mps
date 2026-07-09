@@ -7,6 +7,7 @@ import FilterDropdown from "../components/FilterDropdown";
 import Loading from "../components/Loading";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
 import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
@@ -128,7 +129,13 @@ const ColegiadosInternos = () => {
   }
 
   if (!colegiados.length) {
-    return <div className="empty-state">Base de colegiados internos nao foi carregada.</div>;
+    return (
+      <EmptyStatePanel
+        animation="empty"
+        message="Base de colegiados internos nao foi carregada."
+        title="Nenhum colegiado interno encontrado"
+      />
+    );
   }
 
   return (
@@ -172,7 +179,7 @@ const ColegiadosInternos = () => {
           />
           {canEditContent ? (
             <button
-              className="primary-button"
+              className="success-button"
               onClick={() => {
                 setEditorError("");
                 setEditorOpen(true);
@@ -189,7 +196,6 @@ const ColegiadosInternos = () => {
         {grouped.map(([tipo, items]) => (
           <article className="type-summary-card" key={tipo}>
             <div className="type-summary-card__top">
-              <p className="eyebrow">Tipo de colegiado</p>
               <h3>{tipo}</h3>
               <span className="pill">{items.length} colegiado(s)</span>
             </div>
@@ -204,7 +210,11 @@ const ColegiadosInternos = () => {
           </article>
         ))}
         {!grouped.length ? (
-          <div className="empty-state">Nenhum colegiado interno encontrado para os filtros selecionados.</div>
+          <EmptyStatePanel
+            animation="empty-search"
+            message="Nenhum colegiado interno encontrado para os filtros selecionados."
+            title="Busca sem resultado"
+          />
         ) : null}
       </section>
 

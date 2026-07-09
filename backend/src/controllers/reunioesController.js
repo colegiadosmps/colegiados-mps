@@ -1,5 +1,9 @@
 import { all } from "../database/db.js";
-import { createReuniao, updateReuniao } from "../services/contentCrudService.js";
+import {
+  createReuniao,
+  deleteReuniao,
+  updateReuniao,
+} from "../services/contentCrudService.js";
 
 export const listarReunioes = async (request, response) => {
   try {
@@ -84,6 +88,22 @@ export const atualizarReuniao = async (request, response) => {
     response.status(400).json({
       success: false,
       message: error.message || "Nao foi possivel atualizar a reuniao.",
+    });
+  }
+};
+
+export const excluirReuniao = async (request, response) => {
+  try {
+    await deleteReuniao({
+      id: request.params.id,
+      user: request.adminUser,
+    });
+
+    response.status(204).send();
+  } catch (error) {
+    response.status(400).json({
+      success: false,
+      message: error.message || "Nao foi possivel excluir a reuniao.",
     });
   }
 };

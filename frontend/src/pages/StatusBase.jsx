@@ -3,6 +3,8 @@ import { HiOutlineCircleStack } from "react-icons/hi2";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import FeedbackPanel from "../components/common/FeedbackPanel";
+import LottieAnimation from "../components/common/LottieAnimation";
 import { api } from "../services/api";
 import { formatDateTime } from "../services/formatters";
 
@@ -41,6 +43,7 @@ const StatusBase = () => {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const isErrorMessage = /nao foi possivel|invalido|erro|falha/i.test(message);
 
   const loadData = () =>
     Promise.all([
@@ -171,7 +174,24 @@ const StatusBase = () => {
             </div>
           </form>
 
-          {message ? <div className="inline-message">{message}</div> : null}
+          {submitting ? (
+            <div className="loading-state loading-state--visual">
+              <LottieAnimation
+                fallback={<div className="spinner" />}
+                height={110}
+                name="loading-base"
+                width={110}
+              />
+            </div>
+          ) : null}
+
+          {message ? (
+            <FeedbackPanel
+              message={message}
+              title={isErrorMessage ? "Falha na autenticacao" : "Acesso liberado"}
+              tone={isErrorMessage ? "error" : "success"}
+            />
+          ) : null}
         </section>
       ) : null}
 
@@ -226,7 +246,24 @@ const StatusBase = () => {
               </button>
             </div>
 
-            {message ? <div className="inline-message">{message}</div> : null}
+            {syncing ? (
+              <div className="loading-state loading-state--visual">
+                <LottieAnimation
+                  fallback={<div className="spinner" />}
+                  height={130}
+                  name="sync-drive"
+                  width={130}
+                />
+              </div>
+            ) : null}
+
+            {message ? (
+              <FeedbackPanel
+                message={message}
+                title={isErrorMessage ? "Falha na sincronizacao" : "Sincronizacao concluida"}
+                tone={isErrorMessage ? "error" : "success"}
+              />
+            ) : null}
           </section>
 
           <section className="content-card">
@@ -237,6 +274,7 @@ const StatusBase = () => {
             <PowerBiTable
               columns={historicoColumns}
               emptyMessage="Nenhuma sincronizacao registrada."
+              emptyVariant="empty"
               rows={historico}
             />
           </section>
@@ -249,6 +287,7 @@ const StatusBase = () => {
             <PowerBiTable
               columns={arquivosColumns}
               emptyMessage="Nenhum arquivo registrado na ultima sincronizacao."
+              emptyVariant="empty"
               rows={detalheAtual?.arquivos || []}
             />
           </section>

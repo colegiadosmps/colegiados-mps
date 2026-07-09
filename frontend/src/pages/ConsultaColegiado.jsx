@@ -4,6 +4,8 @@ import {
   HiOutlineCalendarDays,
   HiOutlineClipboardDocumentList,
   HiOutlineFolderOpen,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
   HiOutlineXMark,
   HiOutlineUsers,
 } from "react-icons/hi2";
@@ -14,6 +16,8 @@ import FilterDropdown from "../components/FilterDropdown";
 import InstanciasColegiadasSection from "../components/InstanciasColegiadasSection";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
 import { useAuthSession } from "../context/AuthSessionContext";
 import {
   formatBooleanStatus,
@@ -120,6 +124,8 @@ const ConsultaColegiado = () => {
   const [contentEditor, setContentEditor] = useState({ type: "", record: null });
   const [contentEditorError, setContentEditorError] = useState("");
   const [contentSaving, setContentSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState({ type: "", record: null });
+  const [deletingContent, setDeletingContent] = useState(false);
   const [memberFilters, setMemberFilters] = useState({
     search: "",
     papel: ALL_VALUE,
@@ -261,6 +267,30 @@ const ConsultaColegiado = () => {
     });
   }, [colegiado?.publicacoes, publicationFilters]);
 
+  const handleDeleteContent = async (type, row) => {
+    const routeMap = {
+      membro: `/api/membros/${row.id}`,
+      reuniao: `/api/reunioes/${row.id}`,
+      publicacao: `/api/publicacoes/${row.id}`,
+    };
+
+    setDeletingContent(true);
+    try {
+      await api.delete(routeMap[type], {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadColegiado();
+      setDeleteTarget({ type: "", record: null });
+    } catch (requestError) {
+      setContentEditorError(requestError.message);
+      setContentEditor({ type, record: row });
+    } finally {
+      setDeletingContent(false);
+    }
+  };
+
   const memberActionColumns = useMemo(() => {
     if (!canEditContent) {
       return [];
@@ -270,21 +300,22 @@ const ConsultaColegiado = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar membro ${row.nome_membro}`}
+              className="icon-button--edit"
               onClick={() => {
                 setContentEditor({ type: "membro", record: row });
                 setContentEditorError("");
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -306,6 +337,14 @@ const ConsultaColegiado = () => {
             >
               {row.ativo === "Sim" ? "Inativar" : "Reativar"}
             </button>
+            <button
+              aria-label={`Excluir membro ${row.nome_membro}`}
+              className="icon-button--delete"
+              onClick={() => setDeleteTarget({ type: "membro", record: row })}
+              type="button"
+            >
+              <HiOutlineTrash />
+            </button>
           </div>
         ),
       },
@@ -321,21 +360,22 @@ const ConsultaColegiado = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar reuniao ${row.id_reuniao}`}
+              className="icon-button--edit"
               onClick={() => {
                 setContentEditor({ type: "reuniao", record: row });
                 setContentEditorError("");
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -361,6 +401,14 @@ const ConsultaColegiado = () => {
             >
               {row.status_reuniao === "Cancelada" ? "Reativar" : "Cancelar"}
             </button>
+            <button
+              aria-label={`Excluir reuniao ${row.id_reuniao}`}
+              className="icon-button--delete"
+              onClick={() => setDeleteTarget({ type: "reuniao", record: row })}
+              type="button"
+            >
+              <HiOutlineTrash />
+            </button>
           </div>
         ),
       },
@@ -376,21 +424,22 @@ const ConsultaColegiado = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar publicacao ${row.nome_pasta}`}
+              className="icon-button--edit"
               onClick={() => {
                 setContentEditor({ type: "publicacao", record: row });
                 setContentEditorError("");
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -411,6 +460,14 @@ const ConsultaColegiado = () => {
               type="button"
             >
               {row.status === "Inativo" ? "Reativar" : "Inativar"}
+            </button>
+            <button
+              aria-label={`Excluir publicacao ${row.nome_pasta}`}
+              className="icon-button--delete"
+              onClick={() => setDeleteTarget({ type: "publicacao", record: row })}
+              type="button"
+            >
+              <HiOutlineTrash />
             </button>
           </div>
         ),
@@ -509,7 +566,7 @@ const ConsultaColegiado = () => {
   };
 
   if (error) {
-    return <div className="empty-state">{error}</div>;
+    return <EmptyStatePanel animation="error" message={error} title="Falha ao carregar colegiado" />;
   }
 
   if (!colegiado) {
@@ -598,15 +655,20 @@ const ConsultaColegiado = () => {
               <p>O perfil autenticado pode manter os dados estruturais e criar vinculacoes.</p>
             </div>
             <div className="table-row-actions">
-              <button className="primary-button" onClick={() => setActiveModal("editar-colegiado")} type="button">
-                Editar colegiado
+              <button
+                aria-label="Editar colegiado"
+                className="icon-button--edit"
+                onClick={() => setActiveModal("editar-colegiado")}
+                type="button"
+              >
+                <HiOutlinePencilSquare />
               </button>
               {colegiado.categoria !== "Externo" ? (
                 <>
-                  <button className="secondary-button" onClick={() => setActiveModal("novo-filho")} type="button">
+                  <button className="success-button" onClick={() => setActiveModal("novo-filho")} type="button">
                     Criar colegiado filho
                   </button>
-                  <button className="secondary-button" onClick={() => setActiveModal("nova-instancia")} type="button">
+                  <button className="success-button" onClick={() => setActiveModal("nova-instancia")} type="button">
                     Criar instancia colegiada
                   </button>
                 </>
@@ -630,7 +692,7 @@ const ConsultaColegiado = () => {
                 <p>O perfil autenticado pode incluir, editar e inativar membros deste colegiado.</p>
               </div>
               <button
-                className="primary-button"
+                className="success-button"
                 onClick={() => {
                   setContentEditor({ type: "membro", record: null });
                   setContentEditorError("");
@@ -721,7 +783,7 @@ const ConsultaColegiado = () => {
                 <p>O perfil autenticado pode cadastrar, editar e cancelar reunioes deste colegiado.</p>
               </div>
               <button
-                className="primary-button"
+                className="success-button"
                 onClick={() => {
                   setContentEditor({ type: "reuniao", record: null });
                   setContentEditorError("");
@@ -815,7 +877,7 @@ const ConsultaColegiado = () => {
                 <p>O perfil autenticado pode incluir, editar e inativar publicacoes deste colegiado.</p>
               </div>
               <button
-                className="primary-button"
+                className="success-button"
                 onClick={() => {
                   setContentEditor({ type: "publicacao", record: null });
                   setContentEditorError("");
@@ -1370,6 +1432,33 @@ const ConsultaColegiado = () => {
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel={
+          deleteTarget.type === "membro"
+            ? "Excluir membro"
+            : deleteTarget.type === "reuniao"
+              ? "Excluir reuniao"
+              : "Excluir publicacao"
+        }
+        description={
+          deleteTarget.record
+            ? `O item "${deleteTarget.record.nome_membro || deleteTarget.record.id_reuniao || deleteTarget.record.nome_pasta || "selecionado"}" sera removido permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingContent) {
+            setDeleteTarget({ type: "", record: null });
+          }
+        }}
+        onConfirm={() =>
+          deleteTarget.record &&
+          handleDeleteContent(deleteTarget.type, deleteTarget.record)
+        }
+        open={Boolean(deleteTarget.record)}
+        processing={deletingContent}
+        title="Confirmar exclusao"
+      />
     </div>
   );
 };

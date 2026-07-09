@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { HiOutlineBriefcase, HiOutlineBuildingLibrary } from "react-icons/hi2";
+import {
+  HiOutlineBriefcase,
+  HiOutlineBuildingLibrary,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+} from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
+import ConfirmActionModal from "../components/common/ConfirmActionModal";
 import EditFormModal from "../components/EditFormModal";
 import FilterDropdown from "../components/FilterDropdown";
 import MetricCard from "../components/MetricCard";
@@ -9,6 +15,7 @@ import GraficoBarras from "../components/GraficoBarras";
 import Loading from "../components/Loading";
 import PageHeader from "../components/PageHeader";
 import PowerBiTable from "../components/PowerBiTable";
+import EmptyStatePanel from "../components/common/EmptyStatePanel";
 import { useAuthSession } from "../context/AuthSessionContext";
 import { api } from "../services/api";
 import { formatColegiadoDisplayName } from "../services/formatters";
@@ -54,6 +61,8 @@ const ColegiadosExternos = () => {
   const [colegiados, setColegiados] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(false);
   const [editorError, setEditorError] = useState("");
   const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState({
@@ -107,6 +116,24 @@ const ColegiadosExternos = () => {
 
   const compactChartData = useMemo(() => summarizeChart(chartData, 5), [chartData]);
 
+  const handleDeleteItem = async (row) => {
+    setDeletingItem(true);
+    try {
+      await api.delete(`/api/colegiados/${row.sigla}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await loadData();
+      setItemToDelete(null);
+    } catch (error) {
+      setEditorError(error.message);
+      setEditorOpen(true);
+    } finally {
+      setDeletingItem(false);
+    }
+  };
+
   const actionColumns = useMemo(() => {
     if (!canEditContent) {
       return [];
@@ -116,11 +143,12 @@ const ColegiadosExternos = () => {
       {
         key: "acoes",
         label: "Acoes",
-        width: "180px",
+        width: "176px",
         render: (row) => (
-          <div className="table-row-actions">
+          <div className="table-row-actions table-row-actions--compact">
             <button
-              className="text-button"
+              aria-label={`Editar ${formatColegiadoDisplayName(row.sigla_exibicao || row.nome || row.sigla)}`}
+              className="icon-button--edit"
               onClick={() => {
                 setEditingItem(row);
                 setEditorError("");
@@ -128,10 +156,10 @@ const ColegiadosExternos = () => {
               }}
               type="button"
             >
-              Editar
+              <HiOutlinePencilSquare />
             </button>
             <button
-              className="secondary-button"
+              className="purple-button"
               onClick={async () => {
                 try {
                   await api.put(
@@ -152,6 +180,14 @@ const ColegiadosExternos = () => {
               type="button"
             >
               {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+            </button>
+            <button
+              aria-label={`Excluir ${formatColegiadoDisplayName(row.sigla_exibicao || row.nome || row.sigla)}`}
+              className="icon-button--delete"
+              onClick={() => setItemToDelete(row)}
+              type="button"
+            >
+              <HiOutlineTrash />
             </button>
           </div>
         ),
@@ -209,7 +245,13 @@ const ColegiadosExternos = () => {
   }
 
   if (!colegiados.length) {
-    return <div className="empty-state">Base de colegiados externos nao encontrada no Google Drive.</div>;
+    return (
+      <EmptyStatePanel
+        animation="empty"
+        message="Base de colegiados externos nao encontrada no Google Drive."
+        title="Nenhum colegiado externo encontrado"
+      />
+    );
   }
 
   return (
@@ -268,7 +310,7 @@ const ColegiadosExternos = () => {
           </div>
           {canEditContent ? (
             <button
-              className="primary-button"
+              className="success-button"
               onClick={() => {
                 setEditingItem(null);
                 setEditorError("");
@@ -367,6 +409,24 @@ const ColegiadosExternos = () => {
           </form>
         </EditFormModal>
       ) : null}
+
+      <ConfirmActionModal
+        confirmLabel="Excluir colegiado externo"
+        description={
+          itemToDelete
+            ? `O colegiado externo "${formatColegiadoDisplayName(itemToDelete.sigla_exibicao || itemToDelete.nome || itemToDelete.sigla)}" sera removido permanentemente.`
+            : ""
+        }
+        onCancel={() => {
+          if (!deletingItem) {
+            setItemToDelete(null);
+          }
+        }}
+        onConfirm={() => itemToDelete && handleDeleteItem(itemToDelete)}
+        open={Boolean(itemToDelete)}
+        processing={deletingItem}
+        title="Excluir colegiado externo"
+      />
     </div>
   );
 };

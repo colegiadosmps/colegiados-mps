@@ -80,7 +80,12 @@ label {
 .text-button,
 .text-link,
 .quick-link-card,
-.clear-filters-button {
+.clear-filters-button,
+.success-button,
+.purple-button,
+.icon-button,
+.icon-button--edit,
+.icon-button--delete {
   border: none;
   border-radius: 14px;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
@@ -99,6 +104,20 @@ label {
   padding: 0.9rem 1.2rem;
 }
 
+.success-button {
+  background: linear-gradient(135deg, #18b454, #0d8d40);
+  color: #fff;
+  padding: 0.92rem 1.3rem;
+  box-shadow: 0 12px 22px rgba(24, 180, 84, 0.2);
+}
+
+.purple-button {
+  background: linear-gradient(135deg, #7f4dff, #6532dd);
+  color: #fff;
+  padding: 0.9rem 1.2rem;
+  box-shadow: 0 12px 22px rgba(101, 50, 221, 0.16);
+}
+
 .text-button,
 .text-link,
 .quick-link-card,
@@ -110,11 +129,40 @@ label {
 
 .primary-button:hover,
 .secondary-button:hover,
+.success-button:hover,
+.purple-button:hover,
 .text-button:hover,
 .text-link:hover,
 .quick-link-card:hover,
-.clear-filters-button:hover {
+.clear-filters-button:hover,
+.icon-button:hover,
+.icon-button--edit:hover,
+.icon-button--delete:hover {
   transform: translateY(-1px);
+}
+
+.icon-button,
+.icon-button--edit,
+.icon-button--delete {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #f4f7ff;
+  border: 1px solid rgba(12, 45, 93, 0.08);
+  box-shadow: var(--shadow-soft);
+  font-size: 1.05rem;
+}
+
+.icon-button--edit {
+  color: #de9a11;
+}
+
+.icon-button--delete {
+  color: #14a24b;
 }
 
 .text-link {
@@ -175,6 +223,12 @@ label {
   gap: 1rem;
 }
 
+.loading-state--visual {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
 .spinner {
   width: 18px;
   height: 18px;
@@ -182,6 +236,15 @@ label {
   border: 3px solid rgba(18, 104, 154, 0.16);
   border-top-color: var(--bg-main);
   animation: spin 0.8s linear infinite;
+}
+
+.lottie-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--text-soft);
+  min-width: 72px;
+  min-height: 72px;
+  text-align: center;
 }
 
 .muted,
@@ -424,6 +487,85 @@ label {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.table-row-actions--compact {
+  flex-wrap: nowrap;
+}
+
+.card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.empty-state--illustrated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+}
+
+.empty-state__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.empty-state__content strong {
+  color: var(--bg-dark);
+  font-size: 1.05rem;
+}
+
+.empty-state__content span {
+  color: var(--text-soft);
+}
+
+.inline-message--visual {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.inline-message__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.inline-message__content strong {
+  color: var(--bg-dark);
+}
+
+.inline-message--success {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.inline-message--saved {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.inline-message--error {
+  border-color: rgba(170, 74, 74, 0.16);
+}
+
+.inline-message--sync,
+.inline-message--import {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.confirm-action-modal {
+  width: min(520px, calc(100vw - 2rem));
+}
+
+.confirm-action-modal__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
 }
 
 textarea {
@@ -439,6 +581,11 @@ textarea {
   .editor-form-actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .inline-message--visual {
+    flex-direction: column;
+    text-align: center;
   }
 }
 

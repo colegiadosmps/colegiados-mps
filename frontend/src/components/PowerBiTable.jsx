@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import EmptyStatePanel from "./common/EmptyStatePanel";
 import { formatValueByKey } from "../services/formatters";
 
 const compareValues = (left, right) => {
@@ -14,6 +15,7 @@ const compareValues = (left, right) => {
 const PowerBiTable = ({
   columns,
   emptyMessage,
+  emptyVariant = "empty-search",
   maxVisibleRows = 10,
   rows,
   rowsPerPageOptions = [10, 25, 50],
@@ -40,7 +42,13 @@ const PowerBiTable = ({
   }, [columns, rows, sortConfig, sortable]);
 
   if (!rows.length) {
-    return <div className="empty-state">{emptyMessage}</div>;
+    return (
+      <EmptyStatePanel
+        animation={emptyVariant}
+        message={emptyMessage}
+        title="Nenhum resultado disponivel"
+      />
+    );
   }
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / rowsPerPage));
@@ -96,14 +104,8 @@ const PowerBiTable = ({
                 >
                   <span className="powerbi-table__head">
                     {column.label}
-                    {sortable ? (
-                      <small>
-                        {sortConfig?.key === column.key
-                          ? sortConfig.direction === "asc"
-                            ? "ASC"
-                            : "DESC"
-                          : "SORT"}
-                      </small>
+                    {sortable && sortConfig?.key === column.key ? (
+                      <small>{sortConfig.direction === "asc" ? "ASC" : "DESC"}</small>
                     ) : null}
                   </span>
                 </th>
