@@ -8,6 +8,7 @@ import {
 } from "react-icons/hi2";
 import ClearFiltersButton from "../components/ClearFiltersButton";
 import ConfirmActionModal from "../components/common/ConfirmActionModal";
+import DateInputField from "../components/DateInputField";
 import EditFormModal from "../components/EditFormModal";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
@@ -63,11 +64,16 @@ const ColegiadosInternosTipo = () => {
     sigla: normalizeFilterValue(searchParams.get("sigla")),
   });
 
-  const loadColegiados = () => api.get("/api/colegiados?categoria=Interno").then(setColegiados);
+  const loadColegiados = () =>
+    api
+      .get(
+        `/api/colegiados?categoria=Interno${pageType === "subcomite" ? "&incluirInstancias=true" : ""}`,
+      )
+      .then(setColegiados);
 
   useEffect(() => {
     loadColegiados();
-  }, []);
+  }, [pageType]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -364,14 +370,16 @@ const ColegiadosInternosTipo = () => {
               <span>Sigla da Unidade Pai</span>
               <input defaultValue={editorItem.sigla_unidade_pai || ""} name="sigla_unidade_pai" />
             </label>
-            <label>
-              <span>Data de Instituicao</span>
-              <input defaultValue={editorItem.data_instituicao || ""} name="data_instituicao" />
-            </label>
-            <label>
-              <span>Data de Termino</span>
-              <input defaultValue={editorItem.data_termino || ""} name="data_termino" />
-            </label>
+            <DateInputField
+              defaultValue={editorItem.data_instituicao || ""}
+              name="data_instituicao"
+              span="Data de Instituicao"
+            />
+            <DateInputField
+              defaultValue={editorItem.data_termino || ""}
+              name="data_termino"
+              span="Data de Termino"
+            />
             <label>
               <span>Quantidade minima de reunioes anuais</span>
               <input defaultValue={editorItem.qtd_min_reunioes_anuais || ""} name="qtd_min_reunioes_anuais" />

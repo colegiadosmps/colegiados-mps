@@ -4,12 +4,15 @@ import {
   HiOutlineCalendarDays,
   HiOutlineClipboardDocumentList,
   HiOutlineFolderOpen,
+  HiOutlinePauseCircle,
   HiOutlinePencilSquare,
+  HiOutlinePlayCircle,
   HiOutlineTrash,
   HiOutlineXMark,
   HiOutlineUsers,
 } from "react-icons/hi2";
 import EditFormModal from "../components/EditFormModal";
+import DateInputField from "../components/DateInputField";
 import Loading from "../components/Loading";
 import FilterBox from "../components/FilterBox";
 import FilterDropdown from "../components/FilterDropdown";
@@ -316,7 +319,8 @@ const ConsultaColegiado = () => {
               <HiOutlinePencilSquare />
             </button>
             <button
-              className="purple-button"
+              aria-label={row.ativo === "Sim" ? `Inativar membro ${row.nome_membro}` : `Reativar membro ${row.nome_membro}`}
+              className="icon-button--toggle"
               onClick={async () => {
                 try {
                   await api.put(
@@ -334,9 +338,10 @@ const ConsultaColegiado = () => {
                   setContentEditor({ type: "membro", record: row });
                 }
               }}
+              title={row.ativo === "Sim" ? "Inativar" : "Reativar"}
               type="button"
             >
-              {row.ativo === "Sim" ? "Inativar" : "Reativar"}
+              {row.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
             </button>
             <button
               aria-label={`Excluir membro ${row.nome_membro}`}
@@ -376,7 +381,8 @@ const ConsultaColegiado = () => {
               <HiOutlinePencilSquare />
             </button>
             <button
-              className="purple-button"
+              aria-label={row.status_reuniao === "Cancelada" ? `Reativar reuniao ${row.id_reuniao}` : `Cancelar reuniao ${row.id_reuniao}`}
+              className="icon-button--toggle"
               onClick={async () => {
                 try {
                   await api.put(
@@ -398,9 +404,10 @@ const ConsultaColegiado = () => {
                   setContentEditor({ type: "reuniao", record: row });
                 }
               }}
+              title={row.status_reuniao === "Cancelada" ? "Reativar" : "Cancelar"}
               type="button"
             >
-              {row.status_reuniao === "Cancelada" ? "Reativar" : "Cancelar"}
+              {row.status_reuniao === "Cancelada" ? <HiOutlinePlayCircle /> : <HiOutlinePauseCircle />}
             </button>
             <button
               aria-label={`Excluir reuniao ${row.id_reuniao}`}
@@ -440,7 +447,8 @@ const ConsultaColegiado = () => {
               <HiOutlinePencilSquare />
             </button>
             <button
-              className="purple-button"
+              aria-label={row.status === "Inativo" ? `Reativar publicacao ${row.nome_pasta}` : `Inativar publicacao ${row.nome_pasta}`}
+              className="icon-button--toggle"
               onClick={async () => {
                 try {
                   await api.put(
@@ -458,9 +466,10 @@ const ConsultaColegiado = () => {
                   setContentEditor({ type: "publicacao", record: row });
                 }
               }}
+              title={row.status === "Inativo" ? "Reativar" : "Inativar"}
               type="button"
             >
-              {row.status === "Inativo" ? "Reativar" : "Inativar"}
+              {row.status === "Inativo" ? <HiOutlinePlayCircle /> : <HiOutlinePauseCircle />}
             </button>
             <button
               aria-label={`Excluir publicacao ${row.nome_pasta}`}
@@ -1027,20 +1036,16 @@ const ConsultaColegiado = () => {
                   <span>Unidade</span>
                   <input defaultValue={contentEditor.record?.unidade || ""} name="unidade" />
                 </label>
-                <label>
-                  <span>Inicio</span>
-                  <input
-                    defaultValue={contentEditor.record?.inicio_vigencia || ""}
-                    name="inicio_vigencia"
-                  />
-                </label>
-                <label>
-                  <span>Fim</span>
-                  <input
-                    defaultValue={contentEditor.record?.fim_vigencia || ""}
-                    name="fim_vigencia"
-                  />
-                </label>
+                <DateInputField
+                  defaultValue={contentEditor.record?.inicio_vigencia || ""}
+                  name="inicio_vigencia"
+                  span="Inicio"
+                />
+                <DateInputField
+                  defaultValue={contentEditor.record?.fim_vigencia || ""}
+                  name="fim_vigencia"
+                  span="Fim"
+                />
                 <label>
                   <span>Email</span>
                   <input
@@ -1092,13 +1097,11 @@ const ConsultaColegiado = () => {
                     required
                   />
                 </label>
-                <label>
-                  <span>Data</span>
-                  <input
-                    defaultValue={contentEditor.record?.data_reuniao || ""}
-                    name="data_reuniao"
-                  />
-                </label>
+                <DateInputField
+                  defaultValue={contentEditor.record?.data_reuniao || ""}
+                  name="data_reuniao"
+                  span="Data"
+                />
                 <label>
                   <span>Horario</span>
                   <input defaultValue={contentEditor.record?.hora || ""} name="hora" />
@@ -1182,13 +1185,11 @@ const ConsultaColegiado = () => {
                   <span>Numero</span>
                   <input defaultValue={contentEditor.record?.numero || ""} name="numero" />
                 </label>
-                <label>
-                  <span>Data</span>
-                  <input
-                    defaultValue={contentEditor.record?.data_publicacao || ""}
-                    name="data_publicacao"
-                  />
-                </label>
+                <DateInputField
+                  defaultValue={contentEditor.record?.data_publicacao || ""}
+                  name="data_publicacao"
+                  span="Data"
+                />
                 <label>
                   <span>Ano</span>
                   <input defaultValue={contentEditor.record?.ano || ""} name="ano" />
@@ -1404,20 +1405,16 @@ const ConsultaColegiado = () => {
                 name="sigla_unidade_pai"
               />
             </label>
-            <label>
-              <span>Data de instituicao</span>
-              <input
-                defaultValue={activeModal === "editar-colegiado" ? colegiado.data_instituicao || "" : ""}
-                name="data_instituicao"
-              />
-            </label>
-            <label>
-              <span>Data de termino</span>
-              <input
-                defaultValue={activeModal === "editar-colegiado" ? colegiado.data_termino || "" : ""}
-                name="data_termino"
-              />
-            </label>
+            <DateInputField
+              defaultValue={activeModal === "editar-colegiado" ? colegiado.data_instituicao || "" : ""}
+              name="data_instituicao"
+              span="Data de instituicao"
+            />
+            <DateInputField
+              defaultValue={activeModal === "editar-colegiado" ? colegiado.data_termino || "" : ""}
+              name="data_termino"
+              span="Data de termino"
+            />
             <label>
               <span>Quantidade minima de reunioes</span>
               <input

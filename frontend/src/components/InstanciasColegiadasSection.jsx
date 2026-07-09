@@ -103,7 +103,7 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
 
 const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
   const { canEditContent, token } = useAuthSession();
-  const [payload, setPayload] = useState(null);
+  const [payload, setPayload] = useState({ total: 0, agrupamento: null, instancias: [] });
   const [municipioFilter, setMunicipioFilter] = useState("");
   const [ufFilter, setUfFilter] = useState(ALL_VALUE);
   const [instanciaToDelete, setInstanciaToDelete] = useState(null);
@@ -255,10 +255,6 @@ const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
       .filter((group) => group.estados.length);
   }, [filteredEstados]);
 
-  if (!payload || !payload.total) {
-    return null;
-  }
-
   return (
     <section className="detail-panel instancias-section">
       <div className="section-heading">
@@ -327,17 +323,27 @@ const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
           )}
         </>
       ) : (
-        <div className="instancias-grid">
-          {payload.instancias.map((instancia) => (
-            <InstanciaDiretaCard
-              canEditContent={canEditContent}
-              instancia={instancia}
-              key={instancia.sigla}
-              onDelete={setInstanciaToDelete}
-              onToggleStatus={handleToggleStatus}
+        <>
+          {payload.instancias?.length ? (
+            <div className="instancias-grid">
+              {payload.instancias.map((instancia) => (
+                <InstanciaDiretaCard
+                  canEditContent={canEditContent}
+                  instancia={instancia}
+                  key={instancia.sigla}
+                  onDelete={setInstanciaToDelete}
+                  onToggleStatus={handleToggleStatus}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyStatePanel
+              animation="empty"
+              message="Nenhuma instancia colegiada cadastrada para este colegiado."
+              title="Instancias colegiadas"
             />
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       <ConfirmActionModal

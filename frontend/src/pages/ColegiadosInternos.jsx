@@ -26,7 +26,7 @@ const normalizeType = (value) =>
     .trim()
     .toLowerCase();
 
-const allowedTypes = new Set(["camara", "comite", "conselho", "grupo de trabalho", "subcomite"]);
+const preferredTypeOrder = ["camara", "comite", "conselho", "grupo de trabalho", "subcomite"];
 
 const typeSlugMap = {
   camara: "camara",
@@ -85,7 +85,6 @@ const ColegiadosInternos = () => {
     }
 
     return tipos
-      .filter((tipo) => allowedTypes.has(normalizeType(tipo.nome_exibicao || tipo.nome)))
       .map((tipo) => {
         const related = colegiados.filter((item) => item.tipo === (tipo.nome_exibicao || tipo.nome));
         const matchesTipo =
@@ -104,7 +103,29 @@ const ColegiadosInternos = () => {
         };
       })
       .filter((tipo) => tipo.visible)
-      .sort((left, right) => (left.ordem_exibicao || 0) - (right.ordem_exibicao || 0));
+      .sort((left, right) => {
+        const leftName = left.nome_exibicao || left.nome || "";
+        const rightName = right.nome_exibicao || right.nome || "";
+        const leftIndex = preferredTypeOrder.indexOf(normalizeType(leftName));
+        const rightIndex = preferredTypeOrder.indexOf(normalizeType(rightName));
+
+        if (leftIndex !== -1 || rightIndex !== -1) {
+          if (leftIndex === -1) {
+            return 1;
+          }
+          if (rightIndex === -1) {
+            return -1;
+          }
+          return leftIndex - rightIndex;
+        }
+
+        const orderDiff = (left.ordem_exibicao || 0) - (right.ordem_exibicao || 0);
+        if (orderDiff !== 0) {
+          return orderDiff;
+        }
+
+        return String(leftName).localeCompare(String(rightName), "pt-BR");
+      });
   }, [colegiados, filters, tipos]);
 
   if (!tipos || !colegiados) {
@@ -299,7 +320,9 @@ const ColegiadosInternos = () => {
             </label>
             <div className="form-grid__full editor-form-actions">
               <span className="muted">
-                Alteracao registrada para {user?.primeiroNome || "usuario autenticado"}.
+                {saving
+                  ? "Salvando tipo de colegiado..."
+                  : `Edicao disponivel para ${user?.primeiroNome || "usuario autenticado"}.`}
               </span>
               <button className="success-button" disabled={saving} type="submit">
                 {saving ? "Salvando..." : "Salvar"}
