@@ -48,13 +48,21 @@ const StatusBase = () => {
   const loadData = () =>
     Promise.all([
       api.get("/api/sincronizacoes"),
-      api.get("/api/importacoes/google-drive/status"),
+      api.get("/api/importacoes/google-drive/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
     ]).then(async ([historicoResult, driveStatusResult]) => {
       setHistorico(historicoResult);
       setDriveStatus(driveStatusResult);
 
       if (historicoResult[0]) {
-        const detalhe = await api.get(`/api/sincronizacoes/${historicoResult[0].id}`);
+        const detalhe = await api.get(`/api/sincronizacoes/${historicoResult[0].id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setDetalheAtual(detalhe);
       } else {
         setDetalheAtual(null);

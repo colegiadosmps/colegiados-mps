@@ -116,7 +116,9 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
         reunioes,
         publicacoes,
       ] = await Promise.all([
-        api.get("/api/importacoes/google-drive/status"),
+        api.get("/api/importacoes/google-drive/status", {
+          headers: authHeaders,
+        }),
         api.get("/api/sincronizacoes"),
         api.get("/api/colegiados"),
         api.get("/api/membros"),
@@ -126,7 +128,9 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
 
       const ultimaSincronizacao = sincronizacoes[0] || null;
       const detalheUltimaSincronizacao = ultimaSincronizacao
-        ? await api.get(`/api/sincronizacoes/${ultimaSincronizacao.id}`)
+        ? await api.get(`/api/sincronizacoes/${ultimaSincronizacao.id}`, {
+            headers: authHeaders,
+          })
         : null;
 
       setStatusPayload({
@@ -169,7 +173,7 @@ const AdminPanel = ({ onClose, onLogout, open, token, user }) => {
     }
 
     loadStatusData();
-  }, [activeModal, open]);
+  }, [activeModal, authHeaders, open]);
 
   if (!open) {
     return null;
