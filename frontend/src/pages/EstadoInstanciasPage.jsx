@@ -21,6 +21,7 @@ import {
 } from "../services/formatters";
 
 const stopCardClick = (event) => event.stopPropagation();
+const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
 
 const EstadoInstanciasPage = () => {
   const navigate = useNavigate();
@@ -120,7 +121,10 @@ const EstadoInstanciasPage = () => {
         </div>
       </section>
 
-      <section className="instancias-grid">
+      <section
+        className={`instancias-grid ${filtered.length === 1 ? "instancias-grid--single" : ""}`.trim()}
+        style={{ "--grid-columns": getGridColumns(filtered.length) }}
+      >
         {filtered.map((instancia) => (
           <article
             className="instancia-card"

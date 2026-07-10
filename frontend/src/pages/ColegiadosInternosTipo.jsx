@@ -49,6 +49,7 @@ const singularTitles = {
 const resolveTypeFromSlug = (slug) =>
   slugToTypeMap[String(slug || "").toLowerCase()] || String(slug || "").replace(/-/g, " ");
 const stopCardClick = (event) => event.stopPropagation();
+const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
 
 const ColegiadosInternosTipo = () => {
   const navigate = useNavigate();
@@ -291,7 +292,10 @@ const ColegiadosInternosTipo = () => {
         </div>
       </section>
 
-      <section className="colegiado-grid">
+      <section
+        className={`colegiado-grid ${filteredColegiados.length === 1 ? "colegiado-grid--single" : ""}`.trim()}
+        style={{ "--grid-columns": getGridColumns(filteredColegiados.length) }}
+      >
         {filteredColegiados.map((item) => (
           <article
             className="colegiado-tile"

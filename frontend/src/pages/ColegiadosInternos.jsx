@@ -40,6 +40,7 @@ const typeSlugMap = {
 
 const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(tipo).replace(/\s+/g, "-");
 const stopCardClick = (event) => event.stopPropagation();
+const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
 
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
@@ -198,7 +199,10 @@ const ColegiadosInternos = () => {
         </div>
       </section>
 
-      <section className="type-summary-grid">
+      <section
+        className={`type-summary-grid ${filteredTipos.length === 1 ? "type-summary-grid--single" : ""}`.trim()}
+        style={{ "--grid-columns": getGridColumns(filteredTipos.length) }}
+      >
         {filteredTipos.map((tipo) => (
           <article
             className="type-summary-card"

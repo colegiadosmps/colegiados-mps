@@ -23,6 +23,7 @@ import {
 } from "../services/formatters";
 
 const stopCardClick = (event) => event.stopPropagation();
+const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
 
 const EstadoCard = ({ estado, parentSigla }) => {
   const navigate = useNavigate();
@@ -365,7 +366,10 @@ const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
       ) : (
         <>
           {payload.instancias?.length ? (
-            <div className="instancias-grid">
+            <div
+              className={`instancias-grid ${payload.instancias.length === 1 ? "instancias-grid--single" : ""}`.trim()}
+              style={{ "--grid-columns": getGridColumns(payload.instancias.length) }}
+            >
               {payload.instancias.map((instancia) => (
                 <InstanciaDiretaCard
                   canEditContent={canEditContent}
