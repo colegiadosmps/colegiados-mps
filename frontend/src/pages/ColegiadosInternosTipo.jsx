@@ -48,6 +48,7 @@ const singularTitles = {
 
 const resolveTypeFromSlug = (slug) =>
   slugToTypeMap[String(slug || "").toLowerCase()] || String(slug || "").replace(/-/g, " ");
+const stopCardClick = (event) => event.stopPropagation();
 
 const ColegiadosInternosTipo = () => {
   const navigate = useNavigate();
@@ -292,13 +293,25 @@ const ColegiadosInternosTipo = () => {
 
       <section className="colegiado-grid">
         {filteredColegiados.map((item) => (
-          <article className="colegiado-tile" key={item.sigla}>
+          <article
+            className="colegiado-tile"
+            key={item.sigla}
+            onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate(`/colegiados/${item.chave_pasta || item.sigla}`);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="colegiado-tile__header colegiado-tile__header--start">
               <div className="colegiado-tile__title-block">
                 <span className="pill">{formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}</span>
                 <h4>{item.nome || formatColegiadoDisplayName(item.sigla_exibicao || item.sigla)}</h4>
               </div>
-              <div className="colegiado-tile__actions">
+              <div className="colegiado-tile__actions" onClick={stopCardClick}>
                 {canEditContent ? (
                   <>
                     <button
@@ -336,7 +349,15 @@ const ColegiadosInternosTipo = () => {
             </div>
             <div className="colegiado-tile__footer">
               {canEditContent ? (
-                <button className="icon-button--toggle" onClick={() => handleToggleStatus(item)} title={item.ativo === "Sim" ? "Inativar" : "Reativar"} type="button">
+                <button
+                  className="icon-button--toggle"
+                  onClick={(event) => {
+                    stopCardClick(event);
+                    handleToggleStatus(item);
+                  }}
+                  title={item.ativo === "Sim" ? "Inativar" : "Reativar"}
+                  type="button"
+                >
                   {item.ativo === "Sim" ? <HiOutlinePauseCircle /> : <HiOutlinePlayCircle />}
                 </button>
               ) : (
@@ -344,7 +365,10 @@ const ColegiadosInternosTipo = () => {
               )}
               <button
                 className="text-button"
-                onClick={() => navigate(`/colegiados/${item.chave_pasta || item.sigla}`)}
+                onClick={(event) => {
+                  stopCardClick(event);
+                  navigate(`/colegiados/${item.chave_pasta || item.sigla}`);
+                }}
                 type="button"
               >
                 Acessar

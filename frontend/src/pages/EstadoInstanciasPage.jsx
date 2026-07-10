@@ -20,6 +20,8 @@ import {
   formatColegiadoDisplayName,
 } from "../services/formatters";
 
+const stopCardClick = (event) => event.stopPropagation();
+
 const EstadoInstanciasPage = () => {
   const navigate = useNavigate();
   const { sigla, uf } = useParams();
@@ -120,13 +122,25 @@ const EstadoInstanciasPage = () => {
 
       <section className="instancias-grid">
         {filtered.map((instancia) => (
-          <article className="instancia-card" key={instancia.sigla}>
+          <article
+            className="instancia-card"
+            key={instancia.sigla}
+            onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <div className="instancia-card__content">
               <div className="colegiado-tile__header">
                 <span className="pill pill--soft">
                   {formatColegiadoDisplayName(instancia.sigla_exibicao || instancia.sigla)}
                 </span>
-                <div className="colegiado-tile__actions">
+                <div className="colegiado-tile__actions" onClick={stopCardClick}>
                   {canEditContent ? (
                     <>
                       <button
@@ -176,7 +190,10 @@ const EstadoInstanciasPage = () => {
               <span />
               <button
                 className="text-button instancia-card__action"
-                onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+                onClick={(event) => {
+                  stopCardClick(event);
+                  navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`);
+                }}
                 type="button"
               >
                 Acessar

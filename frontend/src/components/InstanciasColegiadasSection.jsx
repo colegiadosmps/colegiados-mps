@@ -22,11 +22,24 @@ import {
   getUfInfo,
 } from "../services/formatters";
 
+const stopCardClick = (event) => event.stopPropagation();
+
 const EstadoCard = ({ estado, parentSigla }) => {
   const navigate = useNavigate();
 
   return (
-    <article className="instancia-card instancia-card--estado">
+    <article
+      className="instancia-card instancia-card--estado"
+      onClick={() => navigate(`/colegiados/${parentSigla}/estado/${estado.uf}`)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(`/colegiados/${parentSigla}/estado/${estado.uf}`);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className="instancia-card__content">
         <span className="pill pill--soft">{estado.uf}</span>
         <h4>{estado.estado}</h4>
@@ -34,7 +47,10 @@ const EstadoCard = ({ estado, parentSigla }) => {
       </div>
       <button
         className="text-button instancia-card__action"
-        onClick={() => navigate(`/colegiados/${parentSigla}/estado/${estado.uf}`)}
+        onClick={(event) => {
+          stopCardClick(event);
+          navigate(`/colegiados/${parentSigla}/estado/${estado.uf}`);
+        }}
         type="button"
       >
         Acessar
@@ -54,11 +70,22 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
       : displayName;
 
   return (
-    <article className="instancia-card">
+    <article
+      className="instancia-card"
+      onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className="instancia-card__content">
         <div className="colegiado-tile__header">
           <span className="pill">{displayName}</span>
-          <div className="colegiado-tile__actions">
+          <div className="colegiado-tile__actions" onClick={stopCardClick}>
             {canEditContent ? (
               <>
                 <button
@@ -101,7 +128,10 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
         <span />
         <button
           className="text-button instancia-card__action"
-          onClick={() => navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`)}
+          onClick={(event) => {
+            stopCardClick(event);
+            navigate(`/colegiados/${instancia.chave_pasta || instancia.sigla}`);
+          }}
           type="button"
         >
           Acessar

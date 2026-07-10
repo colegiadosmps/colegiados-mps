@@ -39,6 +39,7 @@ const typeSlugMap = {
 };
 
 const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(tipo).replace(/\s+/g, "-");
+const stopCardClick = (event) => event.stopPropagation();
 
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
@@ -199,9 +200,21 @@ const ColegiadosInternos = () => {
 
       <section className="type-summary-grid">
         {filteredTipos.map((tipo) => (
-          <article className="type-summary-card" key={tipo.id}>
+          <article
+            className="type-summary-card"
+            key={tipo.id}
+            onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo.nome_exibicao || tipo.nome)}`)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo.nome_exibicao || tipo.nome)}`);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             {canEditContent ? (
-              <div className="type-summary-card__actions">
+              <div className="type-summary-card__actions" onClick={stopCardClick}>
                 <button
                   aria-label="Editar"
                   className="icon-button--edit"
@@ -260,7 +273,10 @@ const ColegiadosInternos = () => {
             <p>{tipo.descricao || "Colegiados internos organizados por classificacao."}</p>
             <button
               className="text-button type-summary-card__action"
-              onClick={() => navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo.nome_exibicao || tipo.nome)}`)}
+              onClick={(event) => {
+                stopCardClick(event);
+                navigate(`/colegiados/internos/tipo/${getTypeSlug(tipo.nome_exibicao || tipo.nome)}`);
+              }}
               type="button"
             >
               Acessar
