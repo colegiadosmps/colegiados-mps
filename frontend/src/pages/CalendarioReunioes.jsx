@@ -39,6 +39,16 @@ const aggregateByMonth = (rows) => {
     });
 };
 
+const sortReunioes = (items) =>
+  [...items].sort((left, right) => {
+    const leftDate = String(left.data_reuniao || "");
+    const rightDate = String(right.data_reuniao || "");
+    if (leftDate !== rightDate) {
+      return rightDate.localeCompare(leftDate);
+    }
+    return String(right.hora || "").localeCompare(String(left.hora || ""), "pt-BR");
+  });
+
 const CalendarioReunioes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canEditContent, token, user } = useAuthSession();
@@ -206,13 +216,24 @@ const CalendarioReunioes = () => {
         },
       };
 
-      if (editingMeeting?.id) {
-        await api.put(`/api/reunioes/${editingMeeting.id}`, payload, options);
+      const result = editingMeeting?.id
+        ? await api.put(`/api/reunioes/${editingMeeting.id}`, payload, options)
+        : await api.post("/api/reunioes", payload, options);
+      const savedReuniao = result?.reuniao;
+
+      if (savedReuniao) {
+        setReunioes((current) => {
+          const nextItems = editingMeeting?.id
+            ? current.map((item) =>
+                item.id === editingMeeting.id ? { ...item, ...savedReuniao } : item,
+              )
+            : [...current, savedReuniao];
+          return sortReunioes(nextItems);
+        });
       } else {
-        await api.post("/api/reunioes", payload, options);
+        await loadData();
       }
 
-      await loadData();
       setEditorOpen(false);
       setEditingMeeting(null);
     } catch (error) {

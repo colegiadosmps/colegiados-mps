@@ -32,6 +32,11 @@ const aggregateBy = (rows, key) => {
     .sort((left, right) => right.value - left.value || left.label.localeCompare(right.label));
 };
 
+const sortMembros = (items) =>
+  [...items].sort((left, right) =>
+    String(left.nome_membro || "").localeCompare(String(right.nome_membro || ""), "pt-BR"),
+  );
+
 const Integrantes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canEditContent, token, user } = useAuthSession();
@@ -207,13 +212,22 @@ const Integrantes = () => {
         },
       };
 
-      if (editingMember?.id) {
-        await api.put(`/api/membros/${editingMember.id}`, payload, requestOptions);
+      const result = editingMember?.id
+        ? await api.put(`/api/membros/${editingMember.id}`, payload, requestOptions)
+        : await api.post("/api/membros", payload, requestOptions);
+      const savedMembro = result?.membro;
+
+      if (savedMembro) {
+        setMembros((current) => {
+          const nextItems = editingMember?.id
+            ? current.map((item) => (item.id === editingMember.id ? { ...item, ...savedMembro } : item))
+            : [...current, savedMembro];
+          return sortMembros(nextItems);
+        });
       } else {
-        await api.post("/api/membros", payload, requestOptions);
+        await loadData();
       }
 
-      await loadData();
       setEditorOpen(false);
       setEditingMember(null);
     } catch (error) {

@@ -33,6 +33,14 @@ const summarizeChart = (items, limit = 5) => {
   return [...visible, { label: "Outros", value: remainingValue }];
 };
 
+const sortColegiados = (items) =>
+  [...items].sort((left, right) =>
+    formatColegiadoDisplayName(left.sigla_exibicao || left.nome || left.sigla).localeCompare(
+      formatColegiadoDisplayName(right.sigla_exibicao || right.nome || right.sigla),
+      "pt-BR",
+    ),
+  );
+
 const buildColumns = (extraColumns = []) => [
   {
     key: "nome",
@@ -228,13 +236,25 @@ const ColegiadosExternos = () => {
         },
       };
 
-      if (editingItem?.sigla) {
-        await api.put(`/api/colegiados/${editingItem.sigla}`, payload, options);
+      const result = editingItem?.sigla
+        ? await api.put(`/api/colegiados/${editingItem.sigla}`, payload, options)
+        : await api.post("/api/colegiados", payload, options);
+      const savedColegiado = result?.colegiado;
+
+      if (savedColegiado) {
+        setColegiados((current) => {
+          const currentItems = Array.isArray(current) ? current : [];
+          const nextItems = editingItem?.sigla
+            ? currentItems.map((item) =>
+                item.sigla === editingItem.sigla ? { ...item, ...savedColegiado } : item,
+              )
+            : [...currentItems, savedColegiado];
+          return sortColegiados(nextItems);
+        });
       } else {
-        await api.post("/api/colegiados", payload, options);
+        await loadData();
       }
 
-      await loadData();
       setEditorOpen(false);
       setEditingItem(null);
     } catch (error) {

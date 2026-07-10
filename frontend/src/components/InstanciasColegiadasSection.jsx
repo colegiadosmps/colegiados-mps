@@ -142,7 +142,7 @@ const InstanciaDiretaCard = ({ instancia, canEditContent, onDelete, onToggleStat
   );
 };
 
-const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
+const InstanciasColegiadasSection = ({ onAddInstance, refreshKey = 0, sigla }) => {
   const { canEditContent, token } = useAuthSession();
   const [payload, setPayload] = useState({ total: 0, agrupamento: null, instancias: [] });
   const [municipioFilter, setMunicipioFilter] = useState("");
@@ -156,7 +156,7 @@ const InstanciasColegiadasSection = ({ onAddInstance, sigla }) => {
       .get(`/api/colegiados/${sigla}/instancias`)
       .then(setPayload)
       .catch(() => setPayload({ total: 0, agrupamento: null, instancias: [] }));
-  }, [sigla]);
+  }, [refreshKey, sigla]);
 
   const refreshPayload = () =>
     api

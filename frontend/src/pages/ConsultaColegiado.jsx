@@ -95,6 +95,21 @@ const statItems = (colegiado, instanciasCount) =>
     { label: "Reunioes", value: `${colegiado.reunioes?.length || 0} reunioes` },
   ].filter(Boolean);
 
+const sortByName = (items, key) =>
+  [...items].sort((left, right) =>
+    String(left[key] || "").localeCompare(String(right[key] || ""), "pt-BR"),
+  );
+
+const sortReunioes = (items) =>
+  [...items].sort((left, right) => {
+    const leftDate = String(left.data_reuniao || "");
+    const rightDate = String(right.data_reuniao || "");
+    if (leftDate !== rightDate) {
+      return rightDate.localeCompare(leftDate);
+    }
+    return String(right.hora || "").localeCompare(String(left.hora || ""), "pt-BR");
+  });
+
 const ModalSection = ({ children, onClose, title }) => (
   <>
     <button className="status-panel-backdrop" onClick={onClose} type="button" />
@@ -120,6 +135,7 @@ const ConsultaColegiado = () => {
   const { canEditContent, token, user } = useAuthSession();
   const [colegiado, setColegiado] = useState(null);
   const [instanciasCount, setInstanciasCount] = useState(0);
+  const [instanciasRefreshKey, setInstanciasRefreshKey] = useState(0);
   const [error, setError] = useState("");
   const [activeModal, setActiveModal] = useState("");
   const [editorError, setEditorError] = useState("");
@@ -515,10 +531,27 @@ const ConsultaColegiado = () => {
           sigla_colegiado_pai: colegiado.sigla_colegiado_pai || "",
         };
 
-        if (contentEditor.record?.id) {
-          await api.put(`/api/membros/${contentEditor.record.id}`, payload, options);
-        } else {
-          await api.post("/api/membros", payload, options);
+        const result = contentEditor.record?.id
+          ? await api.put(`/api/membros/${contentEditor.record.id}`, payload, options)
+          : await api.post("/api/membros", payload, options);
+        const savedMembro = result?.membro;
+
+        if (savedMembro) {
+          setColegiado((current) =>
+            current
+              ? {
+                  ...current,
+                  membros: contentEditor.record?.id
+                    ? sortByName(
+                        current.membros.map((item) =>
+                          item.id === contentEditor.record.id ? { ...item, ...savedMembro } : item,
+                        ),
+                        "nome_membro",
+                      )
+                    : sortByName([...(current.membros || []), savedMembro], "nome_membro"),
+                }
+              : current,
+          );
         }
       }
 
@@ -538,10 +571,26 @@ const ConsultaColegiado = () => {
           observacao: formData.get("observacao"),
         };
 
-        if (contentEditor.record?.id) {
-          await api.put(`/api/reunioes/${contentEditor.record.id}`, payload, options);
-        } else {
-          await api.post("/api/reunioes", payload, options);
+        const result = contentEditor.record?.id
+          ? await api.put(`/api/reunioes/${contentEditor.record.id}`, payload, options)
+          : await api.post("/api/reunioes", payload, options);
+        const savedReuniao = result?.reuniao;
+
+        if (savedReuniao) {
+          setColegiado((current) =>
+            current
+              ? {
+                  ...current,
+                  reunioes: contentEditor.record?.id
+                    ? sortReunioes(
+                        current.reunioes.map((item) =>
+                          item.id === contentEditor.record.id ? { ...item, ...savedReuniao } : item,
+                        ),
+                      )
+                    : sortReunioes([...(current.reunioes || []), savedReuniao]),
+                }
+              : current,
+          );
         }
       }
 
@@ -559,14 +608,29 @@ const ConsultaColegiado = () => {
           observacao: formData.get("observacao"),
         };
 
-        if (contentEditor.record?.id) {
-          await api.put(`/api/publicacoes/${contentEditor.record.id}`, payload, options);
-        } else {
-          await api.post("/api/publicacoes", payload, options);
+        const result = contentEditor.record?.id
+          ? await api.put(`/api/publicacoes/${contentEditor.record.id}`, payload, options)
+          : await api.post("/api/publicacoes", payload, options);
+        const savedPublicacao = result?.publicacao;
+
+        if (savedPublicacao) {
+          setColegiado((current) =>
+            current
+              ? {
+                  ...current,
+                  publicacoes: contentEditor.record?.id
+                    ? sortByName(
+                        current.publicacoes.map((item) =>
+                          item.id === contentEditor.record.id ? { ...item, ...savedPublicacao } : item,
+                        ),
+                        "nome_pasta",
+                      )
+                    : sortByName([...(current.publicacoes || []), savedPublicacao], "nome_pasta"),
+                }
+              : current,
+          );
         }
       }
-
-      await loadColegiado();
       setContentEditor({ type: "", record: null });
     } catch (requestError) {
       setContentEditorError(requestError.message);
@@ -707,6 +771,7 @@ const ConsultaColegiado = () => {
 
       <InstanciasColegiadasSection
         onAddInstance={canEditContent ? () => setActiveModal("nova-instancia") : null}
+        refreshKey={instanciasRefreshKey}
         sigla={colegiado.sigla}
       />
 
@@ -1307,13 +1372,33 @@ const ConsultaColegiado = () => {
                   },
                 };
 
-                if (activeModal === "editar-colegiado") {
-                  await api.put(`/api/colegiados/${colegiado.sigla}`, payload, options);
+                const result =
+                  activeModal === "editar-colegiado"
+                    ? await api.put(`/api/colegiados/${colegiado.sigla}`, payload, options)
+                    : await api.post("/api/colegiados", payload, options);
+                const savedColegiado = result?.colegiado;
+
+                if (savedColegiado) {
+                  if (activeModal === "editar-colegiado") {
+                    setColegiado((current) =>
+                      current
+                        ? {
+                            ...current,
+                            ...savedColegiado,
+                            membros: current.membros,
+                            reunioes: current.reunioes,
+                            publicacoes: current.publicacoes,
+                          }
+                        : current,
+                    );
+                  } else {
+                    setInstanciasCount((current) => current + 1);
+                    setInstanciasRefreshKey((current) => current + 1);
+                  }
                 } else {
-                  await api.post("/api/colegiados", payload, options);
+                  await loadColegiado();
                 }
 
-                await loadColegiado();
                 setActiveModal("");
               } catch (requestError) {
                 setEditorError(requestError.message);

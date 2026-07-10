@@ -41,6 +41,30 @@ const typeSlugMap = {
 const getTypeSlug = (tipo) => typeSlugMap[normalizeType(tipo)] || normalizeType(tipo).replace(/\s+/g, "-");
 const stopCardClick = (event) => event.stopPropagation();
 const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
+const sortTipos = (items) =>
+  [...items].sort((left, right) => {
+    const leftName = left.nome_exibicao || left.nome || "";
+    const rightName = right.nome_exibicao || right.nome || "";
+    const leftIndex = preferredTypeOrder.indexOf(normalizeType(leftName));
+    const rightIndex = preferredTypeOrder.indexOf(normalizeType(rightName));
+
+    if (leftIndex !== -1 || rightIndex !== -1) {
+      if (leftIndex === -1) {
+        return 1;
+      }
+      if (rightIndex === -1) {
+        return -1;
+      }
+      return leftIndex - rightIndex;
+    }
+
+    const orderDiff = (left.ordem_exibicao || 0) - (right.ordem_exibicao || 0);
+    if (orderDiff !== 0) {
+      return orderDiff;
+    }
+
+    return String(leftName).localeCompare(String(rightName), "pt-BR");
+  });
 
 const ColegiadosInternos = () => {
   const navigate = useNavigate();
@@ -325,13 +349,25 @@ const ColegiadosInternos = () => {
                   },
                 };
 
-                if (editingTipo) {
-                  await api.put(`/api/tipos-colegiados/${editingTipo.id}`, payload, options);
+                const result = editingTipo
+                  ? await api.put(`/api/tipos-colegiados/${editingTipo.id}`, payload, options)
+                  : await api.post("/api/tipos-colegiados", payload, options);
+                const savedTipo = result?.tipo;
+
+                if (savedTipo) {
+                  setTipos((current) => {
+                    const currentItems = Array.isArray(current) ? current : [];
+                    const nextItems = editingTipo
+                      ? currentItems.map((item) =>
+                          item.id === editingTipo.id ? { ...item, ...savedTipo } : item,
+                        )
+                      : [...currentItems, { ...savedTipo, total_colegiados: 0 }];
+                    return sortTipos(nextItems);
+                  });
                 } else {
-                  await api.post("/api/tipos-colegiados", payload, options);
+                  await loadData();
                 }
 
-                await loadData();
                 setEditorOpen(false);
               } catch (error) {
                 setEditorError(error.message);

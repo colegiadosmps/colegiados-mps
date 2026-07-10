@@ -50,6 +50,13 @@ const resolveTypeFromSlug = (slug) =>
   slugToTypeMap[String(slug || "").toLowerCase()] || String(slug || "").replace(/-/g, " ");
 const stopCardClick = (event) => event.stopPropagation();
 const getGridColumns = (count) => Math.min(Math.max(count, 1), 5);
+const sortColegiados = (items) =>
+  [...items].sort((left, right) =>
+    formatColegiadoDisplayName(left.sigla_exibicao || left.sigla).localeCompare(
+      formatColegiadoDisplayName(right.sigla_exibicao || right.sigla),
+      "pt-BR",
+    ),
+  );
 
 const ColegiadosInternosTipo = () => {
   const navigate = useNavigate();
@@ -426,13 +433,25 @@ const ColegiadosInternosTipo = () => {
                   },
                 };
 
-                if (editorItem.sigla) {
-                  await api.put(`/api/colegiados/${editorItem.sigla}`, payload, options);
+                const result = editorItem.sigla
+                  ? await api.put(`/api/colegiados/${editorItem.sigla}`, payload, options)
+                  : await api.post("/api/colegiados", payload, options);
+                const savedColegiado = result?.colegiado;
+
+                if (savedColegiado) {
+                  setColegiados((current) => {
+                    const currentItems = Array.isArray(current) ? current : [];
+                    const nextItems = editorItem.sigla
+                      ? currentItems.map((item) =>
+                          item.sigla === editorItem.sigla ? { ...item, ...savedColegiado } : item,
+                        )
+                      : [...currentItems, savedColegiado];
+                    return sortColegiados(nextItems);
+                  });
                 } else {
-                  await api.post("/api/colegiados", payload, options);
+                  await loadData();
                 }
 
-                await loadData();
                 setEditorItem(null);
               } catch (error) {
                 setEditorError(error.message);

@@ -66,6 +66,11 @@ const buildColumns = (extraColumns = []) => [
   ...extraColumns,
 ];
 
+const sortPublicacoes = (items) =>
+  [...items].sort((left, right) =>
+    String(left.nome_pasta || "").localeCompare(String(right.nome_pasta || ""), "pt-BR"),
+  );
+
 const Publicacoes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canEditContent, token, user } = useAuthSession();
@@ -233,13 +238,25 @@ const Publicacoes = () => {
         },
       };
 
-      if (editingPublication?.id) {
-        await api.put(`/api/publicacoes/${editingPublication.id}`, payload, options);
+      const result = editingPublication?.id
+        ? await api.put(`/api/publicacoes/${editingPublication.id}`, payload, options)
+        : await api.post("/api/publicacoes", payload, options);
+      const savedPublicacao = result?.publicacao;
+
+      if (savedPublicacao) {
+        setPublicacoes((current) => {
+          const currentItems = Array.isArray(current) ? current : [];
+          const nextItems = editingPublication?.id
+            ? currentItems.map((item) =>
+                item.id === editingPublication.id ? { ...item, ...savedPublicacao } : item,
+              )
+            : [...currentItems, savedPublicacao];
+          return sortPublicacoes(nextItems);
+        });
       } else {
-        await api.post("/api/publicacoes", payload, options);
+        await loadData();
       }
 
-      await loadData();
       setEditorOpen(false);
       setEditingPublication(null);
     } catch (error) {
